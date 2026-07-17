@@ -11,8 +11,18 @@ interface HomeRevealProps {
 export default function HomeReveal({ children, className }: HomeRevealProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
+  const [reducedMotion, setReducedMotion] = useState(false)
 
   useEffect(() => {
+    setReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  }, [])
+
+  useEffect(() => {
+    if (reducedMotion) {
+      setVisible(true)
+      return
+    }
+
     const el = ref.current
     if (!el) return
 
@@ -28,13 +38,13 @@ export default function HomeReveal({ children, className }: HomeRevealProps) {
 
     observer.observe(el)
     return () => observer.disconnect()
-  }, [])
+  }, [reducedMotion])
 
   return (
     <div
       ref={ref}
       className={cn(
-        'transition-all duration-700 ease-out',
+        reducedMotion ? '' : 'transition-all duration-700 ease-out',
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5',
         className,
       )}

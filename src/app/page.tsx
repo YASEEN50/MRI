@@ -15,13 +15,15 @@ import HomeFeaturedDoctors from '@/components/home/HomeFeaturedDoctors'
 import HomeFeaturedFacilities from '@/components/home/HomeFeaturedFacilities'
 import HomePublicationsSection from '@/components/home/HomePublicationsSection'
 import HomeAdsSection from '@/components/home/HomeAdsSection'
-import HomeReveal from '@/components/home/HomeReveal'
+import HomeConsultBanner from '@/components/home/HomeConsultBanner'
+import HomeQuickJump from '@/components/home/HomeQuickJump'
 import {
   HomeAdsSkeleton,
   HomeCardRowSkeleton,
   HomePublicationsSkeleton,
   HomeSpecialtiesSkeleton,
 } from '@/components/home/HomeSkeletons'
+import HomeReveal from '@/components/home/HomeReveal'
 import { prisma } from '@/lib/prisma'
 import { ApprovalStatus, Role } from '@prisma/client'
 import { getServerSession } from 'next-auth'
@@ -83,13 +85,25 @@ export default async function HomePage() {
       </HomeReveal>
 
       <HomeReveal>
+        <HomeSection bordered className="py-6">
+          <HomeQuickJump />
+        </HomeSection>
+      </HomeReveal>
+
+      <HomeReveal>
         <HomeSection bordered className="py-8">
           <HomeStatsGrid stats={statItems} />
         </HomeSection>
       </HomeReveal>
 
       <HomeReveal>
-        <HomeSection bordered id="featured-doctors">
+        <HomeSection bordered className="py-8">
+          <HomeConsultBanner role={role} />
+        </HomeSection>
+      </HomeReveal>
+
+      <HomeReveal>
+        <HomeSection bordered id="featured-doctors" className="scroll-mt-20">
           <Suspense fallback={<HomeCardRowSkeleton count={3} />}>
             <HomeFeaturedDoctors />
           </Suspense>
@@ -97,7 +111,7 @@ export default async function HomePage() {
       </HomeReveal>
 
       <HomeReveal>
-        <HomeSection bordered id="featured-facilities">
+        <HomeSection bordered id="featured-facilities" className="scroll-mt-20">
           <Suspense fallback={<HomeCardRowSkeleton count={4} />}>
             <HomeFeaturedFacilities />
           </Suspense>
@@ -105,7 +119,7 @@ export default async function HomePage() {
       </HomeReveal>
 
       <HomeReveal>
-        <HomeSection bordered id="specialties">
+        <HomeSection bordered id="specialties" className="scroll-mt-20">
           <Suspense fallback={<HomeSpecialtiesSkeleton />}>
             <HomeSpecialtiesStrip />
           </Suspense>
@@ -113,7 +127,7 @@ export default async function HomePage() {
       </HomeReveal>
 
       <HomeReveal>
-        <HomeSection bordered id="publications">
+        <HomeSection bordered id="publications" className="scroll-mt-20">
           <Suspense fallback={<HomePublicationsSkeleton />}>
             <HomePublicationsSection />
           </Suspense>

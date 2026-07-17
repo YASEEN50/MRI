@@ -41,7 +41,16 @@
     "feed_empty": "لا توجد منشورات منشورة بعد — تابعنا قريباً",
     "specialties_title": "التخصصات الطبية",
     "specialties_empty": "لا توجد تخصصات متاحة حالياً",
-    "specialty_doctors_count": "{count} طبيب"
+    "specialty_doctors_count": "{count} طبيب",
+    "consult_banner_badge": "متاح الآن",
+    "consult_banner_title": "استشارة طبية فورية",
+    "consult_banner_subtitle": "تواصل مع طبيب معتمد خلال دقائق — دفع آمن بالـ π ومحادثة مباشرة",
+    "facility_view": "عرض المنشأة",
+    "jump_nav_label": "انتقل إلى قسم",
+    "jump_doctors": "الأطباء",
+    "jump_facilities": "المنشآت",
+    "jump_specialties": "التخصصات",
+    "jump_publications": "المقالات"
   },
   "doctors": {
     "title": "الأطباء",

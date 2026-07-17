@@ -46,7 +46,7 @@ export default async function HomeServicesStrip({ role }: HomeServicesStripProps
           <Link
             key={service.key}
             href={service.href}
-            className="snap-start shrink-0 flex flex-col items-center gap-2 min-w-[88px] px-4 py-3.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:border-primary/30 hover:bg-primary/10 transition-all duration-300 active:scale-95"
+            className="snap-start shrink-0 flex flex-col items-center gap-2 min-w-[92px] min-h-[72px] px-4 py-3.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] hover:border-primary/30 hover:bg-primary/10 transition-all duration-300 mpi-btn-ripple"
           >
             <span className="text-2xl" aria-hidden>{service.icon}</span>
             <span className="text-xs font-medium text-slate-300 text-center leading-tight whitespace-nowrap">

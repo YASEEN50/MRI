@@ -41,7 +41,16 @@
     "feed_empty": "No published posts yet — check back soon",
     "specialties_title": "Medical specialties",
     "specialties_empty": "No specialties available yet",
-    "specialty_doctors_count": "{count} doctors"
+    "specialty_doctors_count": "{count} doctors",
+    "consult_banner_badge": "Available now",
+    "consult_banner_title": "Instant medical consult",
+    "consult_banner_subtitle": "Connect with a verified doctor in minutes — secure π payment and live chat",
+    "facility_view": "View facility",
+    "jump_nav_label": "Jump to section",
+    "jump_doctors": "Doctors",
+    "jump_facilities": "Facilities",
+    "jump_specialties": "Specialties",
+    "jump_publications": "Articles"
   },
   "doctors": {
     "title": "Doctors",

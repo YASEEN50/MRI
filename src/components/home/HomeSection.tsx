@@ -17,7 +17,7 @@ export default function HomeSection({
     <section
       id={id}
       className={cn(
-        'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full animate-fade-in',
+        'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full animate-fade-in',
         bordered && 'border-t border-white/5',
         className,
       )}
