@@ -33,6 +33,7 @@ export default function PublicationFeedCard({ pub, locale, compact }: Publicatio
             width={640}
             height={176}
             unoptimized
+            loading="lazy"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         </div>

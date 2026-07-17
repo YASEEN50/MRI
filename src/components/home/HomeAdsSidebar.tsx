@@ -5,75 +5,80 @@ import type { HomeSidebarAd } from '@/lib/home/get-home-ads'
 interface HomeAdsSidebarProps {
   ads: HomeSidebarAd[]
   locale: 'ar' | 'en'
+  variant?: 'sidebar' | 'section'
 }
 
-export default function HomeAdsSidebar({ ads, locale }: HomeAdsSidebarProps) {
+export default function HomeAdsSidebar({ ads, locale, variant = 'sidebar' }: HomeAdsSidebarProps) {
   const isAr = locale === 'ar'
+  const isSection = variant === 'section'
 
   return (
-    <aside className="space-y-4 lg:sticky lg:top-24">
+    <aside className={isSection ? 'space-y-4' : 'space-y-4 lg:sticky lg:top-24'}>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-white">
-          {isAr ? 'إعلانات مدفوعة' : 'Sponsored'}
+        <h2 className="text-xl font-bold text-white">
+          {isAr ? 'إعلانات ممولة' : 'Sponsored ads'}
         </h2>
-        <span className="text-[10px] uppercase tracking-wide text-slate-500 border border-white/10 px-2 py-0.5 rounded">
-          Ad
+        <span className="text-[10px] uppercase tracking-wide text-amber-400/90 bg-amber-500/10 border border-amber-500/25 px-2.5 py-1 rounded-full">
+          {isAr ? 'إعلان ممول' : 'Sponsored'}
         </span>
       </div>
 
       {ads.length === 0 ? (
-        <div className="mpi-card p-5 text-center border-dashed border-white/15">
-          <div className="text-3xl mb-2">📢</div>
-          <p className="text-slate-400 text-sm mb-4">
+        <div className="mpi-card p-6 sm:p-8 text-center border border-amber-500/15 bg-gradient-to-br from-amber-500/5 to-transparent">
+          <div className="text-4xl mb-3">📢</div>
+          <p className="text-slate-400 text-sm mb-5 max-w-md mx-auto leading-relaxed">
             {isAr
-              ? 'مساحة متاحة للإعلانات الطبية والتجارية المعتمدة'
-              : 'Space available for approved medical and commercial ads'}
+              ? 'مساحة متاحة للإعلانات الطبية والتجارية المعتمدة على المنصة'
+              : 'Space available for approved medical and commercial advertising'}
           </p>
           <Link
             href="/advertise"
-            className="inline-flex px-4 py-2 rounded-xl text-sm font-medium bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 transition-all"
+            className="inline-flex px-6 py-3 rounded-2xl text-sm font-semibold bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 transition-all active:scale-[0.98]"
           >
-            {isAr ? 'أعلن معنا' : 'Advertise with us'}
+            {isAr ? 'اعلن معنا' : 'Advertise with us'}
           </Link>
         </div>
       ) : (
-        ads.map((ad) => (
-          <a
-            key={ad.id}
-            href={`/api/ads/${ad.id}/click`}
-            target="_blank"
-            rel="noopener noreferrer sponsored"
-            className="mpi-card block overflow-hidden hover:border-amber-500/30 transition-all group"
-          >
-            {ad.imageUrl && (
-              <div className="h-32 overflow-hidden relative">
-                <Image
-                  src={ad.imageUrl}
-                  alt={ad.title}
-                  width={320}
-                  height={128}
-                  unoptimized
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-              </div>
-            )}
-            <div className="p-4">
-              <p className="text-[10px] text-amber-400/80 mb-1">{isAr ? 'إعلان مدفوع' : 'Paid ad'}</p>
-              <h3 className="text-white font-semibold text-sm mb-1 line-clamp-2 group-hover:text-amber-300 transition-colors">
-                {ad.title}
-              </h3>
-              {ad.description && (
-                <p className="text-slate-400 text-xs line-clamp-2">{ad.description}</p>
+        <div className={isSection ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
+          {ads.map(ad => (
+            <a
+              key={ad.id}
+              href={`/api/ads/${ad.id}/click`}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              className="mpi-card block overflow-hidden hover:border-amber-500/30 transition-all duration-300 group"
+            >
+              {ad.imageUrl && (
+                <div className="h-32 overflow-hidden relative">
+                  <Image
+                    src={ad.imageUrl}
+                    alt={ad.title}
+                    width={320}
+                    height={128}
+                    unoptimized
+                    loading="lazy"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
               )}
-              <p className="text-slate-500 text-xs mt-2 truncate">{ad.advertiserName}</p>
-            </div>
-          </a>
-        ))
+              <div className="p-4">
+                <p className="text-[10px] text-amber-400/80 mb-1">{isAr ? 'إعلان ممول' : 'Sponsored'}</p>
+                <h3 className="text-white font-semibold text-sm mb-1 line-clamp-2 group-hover:text-amber-300 transition-colors">
+                  {ad.title}
+                </h3>
+                {ad.description && (
+                  <p className="text-slate-400 text-xs line-clamp-2">{ad.description}</p>
+                )}
+                <p className="text-slate-500 text-xs mt-2 truncate">{ad.advertiserName}</p>
+              </div>
+            </a>
+          ))}
+        </div>
       )}
 
       <Link
         href="/advertise"
-        className="block w-full text-center px-4 py-3 rounded-xl text-sm font-medium bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all"
+        className="block w-full text-center px-4 py-3 rounded-2xl text-sm font-medium bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all"
       >
         {isAr ? '→ اطلب إعلاناً مدفوعاً' : '→ Request a paid ad'}
       </Link>

@@ -6,10 +6,13 @@ import { getLocale } from 'next-intl/server'
 import Link from 'next/link'
 import Navbar from '@/components/common/Navbar'
 import Footer from '@/components/common/Footer'
-import HomeHeroSearch from '@/components/home/HomeHeroSearch'
+import HomeHero from '@/components/home/HomeHero'
+import HomeSection from '@/components/home/HomeSection'
+import HomeSectionHeader from '@/components/home/HomeSectionHeader'
+import HomeServicesStrip from '@/components/home/HomeServicesStrip'
+import HomeStatsGrid from '@/components/home/HomeStatsGrid'
 import HomePublicationsFeed from '@/components/home/HomePublicationsFeed'
 import HomeAdsSidebar from '@/components/home/HomeAdsSidebar'
-import HomeHeroActions from '@/components/home/HomeHeroActions'
 import DoctorCard from '@/components/doctors/DoctorCard'
 import FacilityCard from '@/components/facilities/FacilityCard'
 import { prisma } from '@/lib/prisma'
@@ -39,7 +42,7 @@ async function getFeaturedFacilities() {
   return prisma.facilityProfile.findMany({
     where: { approvalStatus: ApprovalStatus.APPROVED, deletedAt: null },
     orderBy: { averageRating: 'desc' },
-    take: 4,
+    take: 6,
   })
 }
 
@@ -61,7 +64,6 @@ export default async function HomePage() {
     redirect('/login')
   }
   const role = session.user.role as Role
-  const isLoggedIn = true
 
   let doctors: Awaited<ReturnType<typeof getFeaturedDoctors>> = []
   let facilities: Awaited<ReturnType<typeof getFeaturedFacilities>> = []
@@ -90,112 +92,101 @@ export default async function HomePage() {
     console.error('[HomePage] sidebar ads error:', e)
   }
 
+  const statItems = [
+    { value: stats.doctors, label: t('home.stats_doctors'), icon: '👨‍⚕️' },
+    { value: stats.facilities, label: t('home.stats_facilities'), icon: '🏥' },
+    { value: stats.appointments, label: t('home.stats_appointments'), icon: '📅' },
+  ]
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar locale={locale} />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden mpi-grid-bg mpi-hero-glow">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[450px] bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+      <HomeHero locale={locale} role={role} />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 text-center animate-fade-in">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/25 rounded-full text-accent text-sm mb-8">
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse-soft" />
-            {locale === 'ar' ? 'MRI — منصة طبية موثوقة' : 'MRI — Trusted Medical Platform'}
-          </div>
+      <HomeSection bordered>
+        <HomeServicesStrip role={role} />
+      </HomeSection>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight tracking-tight">
-            {t('home.hero_title')}
-          </h1>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto mb-8">
-            {t('home.hero_subtitle')}
-          </p>
+      <HomeSection bordered className="py-8">
+        <HomeStatsGrid stats={statItems} />
+      </HomeSection>
 
-          <div className="mb-8 px-4">
-            <HomeHeroSearch />
-          </div>
-
-          <HomeHeroActions locale={locale} role={role} isLoggedIn={isLoggedIn} />
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto mt-16">
-            {[
-              { value: stats.doctors,      label: t('home.stats_doctors'),      icon: '👨‍⚕️' },
-              { value: stats.facilities,   label: t('home.stats_facilities'),   icon: '🏥' },
-              { value: stats.appointments, label: t('home.stats_appointments'), icon: '📅' },
-            ].map((s, i) => (
-              <div key={i} className="mpi-card p-4 text-center animate-slide-up" style={{ animationDelay: `${i * 80}ms` }}>
-                <div className="text-2xl mb-1">{s.icon}</div>
-                <p className="text-2xl font-bold text-white">{s.value.toLocaleString()}+</p>
-                <p className="text-xs text-slate-500 mt-1">{s.label}</p>
+      <HomeSection bordered id="featured-doctors">
+        <HomeSectionHeader
+          title={`⭐ ${t('home.featured_doctors')}`}
+          href="/doctors"
+          linkLabel={t('common.show_more')}
+        />
+        {doctors.length > 0 ? (
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 [scrollbar-width:thin] lg:grid lg:grid-cols-3 lg:overflow-visible lg:snap-none">
+            {doctors.map(d => (
+              <div key={d.id} className="snap-start shrink-0 w-[min(100%,300px)] lg:w-auto">
+                <DoctorCard
+                  id={d.id}
+                  fullName={`${d.firstName} ${d.lastName}`}
+                  specialization={d.specialization}
+                  city={d.city ?? undefined}
+                  consultationFee={d.consultationFee ? Number(d.consultationFee) : undefined}
+                  averageRating={Number(d.averageRating)}
+                  totalReviews={d.totalReviews}
+                  yearsOfExperience={d.yearsOfExperience}
+                  premioTier={d.premioTier}
+                />
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Feed + Ads */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full border-t border-white/5">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_320px] gap-8 lg:gap-10 items-start">
-          <HomePublicationsFeed publications={publications} locale={locale} />
-          <HomeAdsSidebar ads={sidebarAds} locale={locale} />
-        </div>
-      </section>
-
-      {/* Featured Doctors */}
-      {doctors.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full animate-fade-in">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-white">{t('home.featured_doctors')}</h2>
-            <Link href="/doctors" className="text-sm text-accent hover:text-white transition-colors">
-              {t('common.show_more')} →
+        ) : (
+          <div className="mpi-card p-10 text-center">
+            <div className="text-4xl mb-3">👨‍⚕️</div>
+            <p className="text-slate-400 text-sm mb-4">{t('home.doctors_empty')}</p>
+            <Link href="/doctors" className="text-accent text-sm hover:underline">
+              {t('home.hero_cta')} →
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {doctors.map((d) => (
-              <DoctorCard
-                key={d.id}
-                id={d.id}
-                fullName={`${d.firstName} ${d.lastName}`}
-                specialization={d.specialization}
-                city={d.city ?? undefined}
-                consultationFee={d.consultationFee ? Number(d.consultationFee) : undefined}
-                averageRating={Number(d.averageRating)}
-                totalReviews={d.totalReviews}
-                yearsOfExperience={d.yearsOfExperience}
-                premioTier={d.premioTier}
-              />
+        )}
+      </HomeSection>
+
+      <HomeSection bordered id="featured-facilities">
+        <HomeSectionHeader
+          title={`🏥 ${t('home.featured_facilities')}`}
+          href="/facilities"
+          linkLabel={t('common.show_more')}
+        />
+        {facilities.length > 0 ? (
+          <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1 [scrollbar-width:thin] lg:grid lg:grid-cols-3 xl:grid-cols-4 lg:overflow-visible lg:snap-none">
+            {facilities.map(f => (
+              <div key={f.id} className="snap-start shrink-0 w-[min(100%,280px)] lg:w-auto">
+                <FacilityCard
+                  id={f.id}
+                  name={f.name}
+                  type={f.type}
+                  city={f.city}
+                  averageRating={Number(f.averageRating)}
+                  totalReviews={f.totalReviews}
+                  phone={f.phone ?? undefined}
+                />
+              </div>
             ))}
           </div>
-        </section>
-      )}
-
-      {/* Featured Facilities */}
-      {facilities.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 border-t border-white/5 w-full">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-white">{t('home.featured_facilities')}</h2>
-            <Link href="/facilities" className="text-sm text-accent hover:text-white transition-colors">
-              {t('common.show_more')} →
+        ) : (
+          <div className="mpi-card p-10 text-center">
+            <div className="text-4xl mb-3">🏥</div>
+            <p className="text-slate-400 text-sm mb-4">{t('home.facilities_empty')}</p>
+            <Link href="/facilities" className="text-accent text-sm hover:underline">
+              {t('nav.facilities')} →
             </Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {facilities.map((f) => (
-              <FacilityCard
-                key={f.id}
-                id={f.id}
-                name={f.name}
-                type={f.type}
-                city={f.city}
-                averageRating={Number(f.averageRating)}
-                totalReviews={f.totalReviews}
-                phone={f.phone ?? undefined}
-              />
-            ))}
-          </div>
-        </section>
-      )}
+        )}
+      </HomeSection>
+
+      <HomeSection bordered id="publications">
+        <HomePublicationsFeed publications={publications} locale={locale} />
+      </HomeSection>
+
+      <HomeSection bordered id="ads" className="pb-14">
+        <HomeAdsSidebar ads={sidebarAds} locale={locale} variant="section" />
+      </HomeSection>
 
       <Footer locale={locale} />
     </div>
