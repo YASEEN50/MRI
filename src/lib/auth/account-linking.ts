@@ -1,35 +1,46 @@
 import { prisma } from '@/lib/prisma'
-import type { User } from '@prisma/client'
+import type { User, Role } from '@prisma/client'
 
 export interface VerifiedPiUser {
   uid: string
   username: string
 }
 
+export type ResolvePiLoginResult = {
+  user: User
+  isNewUser: boolean
+}
+
 /** Find or create user on Pi login (no auto-link by email). */
-export async function resolvePiLoginUser(piUser: VerifiedPiUser): Promise<User> {
+export async function resolvePiLoginUser(
+  piUser: VerifiedPiUser,
+  options?: { roleOnCreate?: Role },
+): Promise<ResolvePiLoginResult> {
   const existing = await prisma.user.findFirst({
     where: { piUid: piUser.uid, deletedAt: null },
   })
 
   if (existing) {
-    if (existing.piUsername !== piUser.username) {
-      return prisma.user.update({
-        where: { id: existing.id },
-        data: { piUsername: piUser.username, updatedAt: new Date() },
-      })
-    }
-    return existing
+    const user =
+      existing.piUsername !== piUser.username
+        ? await prisma.user.update({
+            where: { id: existing.id },
+            data: { piUsername: piUser.username, updatedAt: new Date() },
+          })
+        : existing
+    return { user, isNewUser: false }
   }
 
-  return prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       piUid: piUser.uid,
       piUsername: piUser.username,
-      role: 'CLIENT',
+      role: options?.roleOnCreate ?? 'CLIENT',
       isActive: true,
     },
   })
+
+  return { user, isNewUser: true }
 }
 
 /** Attach Pi identity to an existing account; merge orphan Pi-only account if needed. */

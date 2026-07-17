@@ -31,7 +31,13 @@ function applyPiWebViewHeaders(res: NextResponse): NextResponse {
 /** Pi Portal static auth — login/register; `/` landing for guests, Next.js home when signed in. */
 function piStaticRewrite(req: NextRequest): NextResponse | null {
   const { pathname, searchParams } = req.nextUrl
+
+  if (pathname === '/pi-email.html' || pathname === '/pi-link-email.html' || pathname === '/pi-link-pi.html') {
+    return applyPiWebViewHeaders(NextResponse.redirect(new URL('/pi-login.html', req.url)))
+  }
+
   if (searchParams.get('site') === 'full' || searchParams.get('mfa') === 'required') return null
+  if (pathname === '/login/mfa' || pathname.startsWith('/login/mfa')) return null
 
   if (pathname === '/login') {
     return applyPiWebViewHeaders(NextResponse.rewrite(new URL('/pi-login.html', req.url)))
@@ -73,7 +79,7 @@ const authMiddleware = withAuth(
         return NextResponse.redirect(new URL('/admin/security/mfa', req.url))
       }
       if (!mfaVerified) {
-        return NextResponse.redirect(new URL('/login?site=full&mfa=required', req.url))
+        return NextResponse.redirect(new URL('/login/mfa', req.url))
       }
     }
 
@@ -191,6 +197,7 @@ export const config = {
   matcher: [
     '/',
     '/login',
+    '/login/mfa',
     '/register',
     '/owner/:path*',
     '/admin/:path*',

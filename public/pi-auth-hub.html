@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>مركز اختبار الدخول — MRI</title>
+  <title>مركز Pi — MRI</title>
   <link rel="stylesheet" href="/pi-login.css?v=2" />
 </head>
 <body class="pi-auth-page">
@@ -15,28 +15,23 @@
   <div class="pi-auth-wrap">
     <div class="pi-auth-brand">
       <h1 class="pi-auth-title">MRI</h1>
-      <p class="pi-auth-subtitle">مركز اختبار Pi + البريد</p>
+      <p class="pi-auth-subtitle">مصادقة Pi Network</p>
     </div>
 
     <div class="pi-auth-card">
-      <h2>طرق الدخول والربط</h2>
+      <h2>الدخول والتسجيل</h2>
       <p class="pi-auth-hint" id="accountLine">جاري التحقق من حسابك...</p>
 
-      <a href="/pi-app.html" class="pi-auth-btn pi-auth-btn-pi" style="margin-top:16px">π Pi — الدخول الرئيسي</a>
-      <a href="/pi-email.html" class="pi-auth-btn pi-auth-btn-email" style="margin-top:10px">📧 الدخول بالبريد (اختبار)</a>
-      <a href="/pi-register.html" class="pi-auth-btn pi-auth-btn-outline" style="margin-top:10px">➕ حساب بريد جديد</a>
-      <a href="/pi-link-email.html" class="pi-auth-btn pi-auth-btn-outline" style="margin-top:10px">🔗 ربط بريد لحساب Pi</a>
-      <a href="/pi-link-pi.html" class="pi-auth-btn pi-auth-btn-outline" style="margin-top:10px">🔗 ربط Pi لحساب بريد</a>
+      <a href="/pi-app.html" class="pi-auth-btn pi-auth-btn-pi" style="margin-top:16px">π Pi — لوحة الدخول</a>
+      <a href="/login" class="pi-auth-btn pi-auth-btn-outline" style="margin-top:10px">تسجيل الدخول</a>
+      <a href="/register" class="pi-auth-btn pi-auth-btn-outline" style="margin-top:10px">إنشاء حساب جديد</a>
 
       <div class="pi-auth-trust" style="margin-top:16px">
-        <span>Pi = الإنتاج</span>
-        <span>Email = اختبار متعدد</span>
+        <span>🔒 Pi فقط</span>
+        <span>🟣 Pi Network</span>
       </div>
     </div>
 
-    <p class="pi-auth-hint pi-auth-text-center" style="max-width:320px;margin:12px auto 0;font-size:12px">
-      للاختبار بدون تأكيد بريد: فعّل <code style="color:var(--pi-accent)">AUTH_AUTO_VERIFY_EMAIL=true</code> في Vercel
-    </p>
     <a class="pi-auth-back pi-auth-text-center" href="/" style="display:block;margin-top:12px">← الرئيسية</a>
   </div>
 
@@ -47,17 +42,14 @@
       var s = res.data || res
       var el = document.getElementById('accountLine')
       if (!s.authenticated) {
-        el.textContent = 'غير مسجّل — اختر طريقة الدخول'
+        el.textContent = 'غير مسجّل — سجّل الدخول عبر Pi'
         return
       }
-      var parts = []
-      if (s.email) parts.push(s.email)
-      if (s.piUsername) parts.push('@' + s.piUsername)
-      el.textContent = 'مسجّل: ' + (parts.join(' · ') || s.userId.slice(0, 8))
-      if (s.unified) el.textContent += ' ✓ موحّد'
+      var label = s.piUsername ? '@' + s.piUsername : (s.email || s.userId.slice(0, 8))
+      el.textContent = 'مسجّل: ' + label
     })
     .catch(function () {
-      document.getElementById('accountLine').textContent = 'اختر طريقة الدخول'
+      document.getElementById('accountLine').textContent = 'سجّل الدخول عبر Pi Network'
     })
   </script>
 </body>

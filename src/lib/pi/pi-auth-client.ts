@@ -154,9 +154,6 @@ async function readAuthSession(): Promise<{
 }
 
 function mapPiSignInError(code: string | undefined): string {
-  if (code === 'MFA_USE_EMAIL') {
-    return 'حساب الأدمن يتطلب الدخول بالبريد الإلكتروني (pi-email.html)'
-  }
   if (code === 'INVALID_PI_TOKEN' || code === 'MISSING_PI_TOKEN') {
     return 'فشل التحقق من Pi — افتح التطبيق داخل Pi Browser ووافق على المصادقة'
   }
@@ -171,13 +168,17 @@ function mapPiSignInError(code: string | undefined): string {
 
 async function exchangePiTokenForSession(
   accessToken: string,
+  options?: { roleOnCreate?: 'CLIENT' | 'DOCTOR' | 'FACILITY' },
 ): Promise<{ ok: boolean; error?: string; redirectPath?: string }> {
   await requestCookieAccess()
   const res = await fetch('/api/auth/pi-session', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accessToken }),
+    body: JSON.stringify({
+      accessToken,
+      ...(options?.roleOnCreate ? { role: options.roleOnCreate } : {}),
+    }),
   })
   const data = await res.json()
   const inner = data.data as {
@@ -185,6 +186,7 @@ async function exchangePiTokenForSession(
     code?: string
     message?: string
     redirectPath?: string
+    mfaRequired?: boolean
   }
 
   if (!res.ok || !data.success || inner?.error) {
@@ -197,10 +199,10 @@ async function exchangePiTokenForSession(
   const target = session?.user ? resolvePostLoginPath(session) : redirectPath
 
   if (typeof window !== 'undefined') {
-    window.location.href = target
+    window.location.href = inner.mfaRequired ? '/login/mfa' : target
   }
 
-  return { ok: true, redirectPath: target }
+  return { ok: true, redirectPath: inner.mfaRequired ? '/login/mfa' : target }
 }
 
 /** Paths where we resume an existing session on load */
@@ -212,8 +214,7 @@ function isPiEntryPath(): boolean {
     p === '/login' ||
     p === '/register' ||
     p === '/pi.html' ||
-    p === '/pi-login.html' ||
-    p === '/pi-email.html'
+    p === '/pi-login.html'
   )
 }
 
@@ -239,7 +240,10 @@ export async function runPiAuthOnLoad(): Promise<'redirecting' | 'idle'> {
   return 'idle'
 }
 
-export async function signInWithPiNetwork(_callbackUrl = '/'): Promise<{
+export async function signInWithPiNetwork(
+  _callbackUrl = '/',
+  options?: { roleOnCreate?: 'CLIENT' | 'DOCTOR' | 'FACILITY' },
+): Promise<{
   ok: boolean
   error?: string
   redirectPath?: string
@@ -254,7 +258,7 @@ export async function signInWithPiNetwork(_callbackUrl = '/'): Promise<{
     await requestCookieAccess()
     const authResult = await authenticateWithPi()
     await requestCookieAccess()
-    const sessionResult = await exchangePiTokenForSession(authResult.accessToken)
+    const sessionResult = await exchangePiTokenForSession(authResult.accessToken, options)
     if (sessionResult.ok) {
       await flushPendingIncompletePayments(authResult.accessToken)
     }
