@@ -64,6 +64,14 @@
   .mpi-card-hover {
     @apply mpi-card transition-all duration-300 hover:border-primary/30 hover:shadow-card-hover hover:-translate-y-0.5;
   }
+
+  .mpi-skeleton {
+    @apply bg-white/[0.06] animate-pulse rounded-xl;
+  }
+
+  .mpi-btn-ripple {
+    @apply relative overflow-hidden transition-transform duration-200 active:scale-[0.98];
+  }
 }
 
 @layer utilities {

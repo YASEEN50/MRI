@@ -38,7 +38,10 @@
     "feed_title": "أحدث المقالات الطبية",
     "feed_subtitle": "أبحاث، مقالات، نصائح طبية، ودراسات من أطباء معتمدين",
     "feed_view_all": "عرض الكل",
-    "feed_empty": "لا توجد منشورات منشورة بعد — تابعنا قريباً"
+    "feed_empty": "لا توجد منشورات منشورة بعد — تابعنا قريباً",
+    "specialties_title": "التخصصات الطبية",
+    "specialties_empty": "لا توجد تخصصات متاحة حالياً",
+    "specialty_doctors_count": "{count} طبيب"
   },
   "doctors": {
     "title": "الأطباء",

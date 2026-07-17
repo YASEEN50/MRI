@@ -46,7 +46,7 @@ function dashboardCta(role: Role | undefined, locale: 'ar' | 'en'): { href: stri
 }
 
 const secondaryBtn =
-  'inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-slate-200 font-medium rounded-2xl transition-all duration-300 text-sm active:scale-[0.98]'
+  'mpi-btn-ripple inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-slate-200 font-medium rounded-2xl transition-all duration-300 text-sm'
 
 export default async function HomeHeroActions({ locale, role, isLoggedIn }: HomeHeroActionsProps) {
   const t = await getTranslations('home')
@@ -63,7 +63,7 @@ export default async function HomeHeroActions({ locale, role, isLoggedIn }: Home
     <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
       <Link
         href={primaryHref}
-        className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary to-primary-600 hover:from-primary-400 hover:to-primary text-white font-semibold rounded-2xl transition-all duration-300 shadow-glow-primary text-sm active:scale-[0.98]"
+        className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary to-primary-600 hover:from-primary-400 hover:to-primary text-white font-semibold rounded-2xl transition-all duration-300 shadow-glow-primary text-sm mpi-btn-ripple"
       >
         <span aria-hidden>{primaryIcon}</span>
         {primaryLabel}

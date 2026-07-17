@@ -38,7 +38,10 @@
     "feed_title": "Latest medical articles",
     "feed_subtitle": "Research, articles, medical tips, and case studies from verified doctors",
     "feed_view_all": "View all",
-    "feed_empty": "No published posts yet — check back soon"
+    "feed_empty": "No published posts yet — check back soon",
+    "specialties_title": "Medical specialties",
+    "specialties_empty": "No specialties available yet",
+    "specialty_doctors_count": "{count} doctors"
   },
   "doctors": {
     "title": "Doctors",
