@@ -3,13 +3,10 @@ import { NextAuthOptions } from 'next-auth'
 import { JWT } from 'next-auth/jwt'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { PrismaAdapter } from '@auth/prisma-adapter'
-import { compare } from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { Role, ApprovalStatus } from '@prisma/client'
 import { verifyPiAccessToken } from '@/lib/pi/verify-access-token'
 import { resolvePiLoginUser } from '@/lib/auth/account-linking'
-import { findUserByAuthEmail } from '@/lib/auth/find-user-by-email'
-import { normalizeAuthEmail } from '@/lib/auth/normalize-email'
 import { consumeMfaSignInToken } from '@/lib/mfa/signin-token'
 import { resolveMfaSessionFlags } from '@/lib/mfa/session-flags'
 import { getApprovalStatus, getProfileCompleteness } from '@/lib/auth/session-helpers'
@@ -125,38 +122,7 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) throw new Error('MISSING_CREDENTIALS')
-        const email = normalizeAuthEmail(credentials.email)
-        const user = await findUserByAuthEmail(email, {
-          id: true,
-          email: true,
-          passwordHash: true,
-          isActive: true,
-          role: true,
-          piUid: true,
-          piUsername: true,
-          mfaEnabled: true,
-        })
-        if (!user || !user.passwordHash) throw new Error('INVALID_CREDENTIALS')
-        if (!user.isActive) throw new Error('ACCOUNT_DISABLED')
-        const isValid = await compare(credentials.password, user.passwordHash)
-        if (!isValid) throw new Error('INVALID_CREDENTIALS')
-        if ((user.role === Role.ADMIN || user.role === Role.OWNER) && user.mfaEnabled) {
-          throw new Error('MFA_REQUIRED')
-        }
-        const isProfileComplete = await getProfileCompleteness(user.id, user.role)
-        const approvalStatus = await getApprovalStatus(user.id, user.role)
-        return {
-          id: user.id,
-          email: user.email,
-          name: null,
-          role: user.role,
-          approvalStatus,
-          piUid: user.piUid,
-          piUsername: user.piUsername,
-          isProfileComplete,
-          viaMfaToken: false,
-        }
+        throw new Error('PI_ONLY_AUTH')
       },
     }),
 
@@ -168,11 +134,8 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.accessToken) throw new Error('MISSING_PI_TOKEN')
         const piUser = await verifyPiAccessToken(credentials.accessToken)
         if (!piUser) throw new Error('INVALID_PI_TOKEN')
-        const user = await resolvePiLoginUser(piUser)
+        const { user } = await resolvePiLoginUser(piUser)
         if (!user.isActive) throw new Error('ACCOUNT_DISABLED')
-        if ((user.role === Role.ADMIN || user.role === Role.OWNER) && user.mfaEnabled) {
-          throw new Error('MFA_USE_EMAIL')
-        }
         const isProfileComplete = await getProfileCompleteness(user.id, user.role)
         const approvalStatus = await getApprovalStatus(user.id, user.role)
         return {

@@ -1,11 +1,10 @@
-// src/app/(auth)/register/page.tsx
-import RegisterForm from '@/components/auth/RegisterForm'
+import PiRegisterForm from '@/components/auth/PiRegisterForm'
 
 export const metadata = {
-  title: 'إنشاء حساب | المنصة الطبية',
-  description: 'إنشاء حساب جديد في المنصة الطبية',
+  title: 'إنشاء حساب | MRI',
+  description: 'إنشاء حساب جديد عبر Pi Network',
 }
 
 export default function RegisterPage() {
-  return <RegisterForm />
+  return <PiRegisterForm />
 }

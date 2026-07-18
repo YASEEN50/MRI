@@ -35,7 +35,8 @@ export class PiAuthService {
 
     if (!user) {
       isNewUser = true
-      user = await resolvePiLoginUser(piUser)
+      const resolved = await resolvePiLoginUser(piUser)
+      user = resolved.user
     } else if (user.piUsername !== piUser.username) {
       // تحديث اسم المستخدم إذا تغيّر
       user = await prisma.user.update({

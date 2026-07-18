@@ -4,7 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>إنشاء حساب — MRI</title>
-  <link rel="stylesheet" href="/pi-login.css?v=2" />
+  <link rel="stylesheet" href="/pi-login.css?v=3" />
+  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+  <script src="/pi-auth.js"></script>
 </head>
 <body class="pi-auth-page">
   <div class="pi-auth-medical" aria-hidden="true"></div>
@@ -22,94 +24,52 @@
         </svg>
       </div>
       <h1 class="pi-auth-title">MRI</h1>
-      <p class="pi-auth-subtitle">إنشاء حساب جديد</p>
+      <p class="pi-auth-subtitle">إنشاء حساب عبر Pi Network</p>
     </div>
 
     <div class="pi-auth-card">
       <h2>انضم إلى المنصة</h2>
-      <p class="pi-auth-hint">أنشئ حسابك للوصول إلى الخدمات الطبية</p>
+      <p class="pi-auth-hint">اختر نوع حسابك ثم وافق على المصادقة في Pi</p>
 
-      <form id="form">
-        <label class="pi-auth-label" for="email">البريد الإلكتروني</label>
-        <div class="pi-auth-input-wrap">
-          <input id="email" class="pi-auth-input" type="email" required dir="ltr" placeholder="example@email.com" autocomplete="email" />
-        </div>
+      <label class="pi-auth-label" for="role">نوع الحساب</label>
+      <select id="role" class="pi-auth-select">
+        <option value="CLIENT">مريض / عميل</option>
+        <option value="DOCTOR">طبيب</option>
+        <option value="FACILITY">منشأة طبية</option>
+      </select>
 
-        <label class="pi-auth-label" for="password">كلمة المرور</label>
-        <div class="pi-auth-input-wrap">
-          <input id="password" class="pi-auth-input has-toggle" type="password" required minlength="8" dir="ltr" placeholder="8+ أحرف، حرف كبير ورقم" autocomplete="new-password" />
-          <button type="button" class="pi-auth-input-toggle" id="togglePwd" aria-label="إظهار كلمة المرور">👁</button>
-        </div>
-
-        <label class="pi-auth-label" for="role">نوع الحساب</label>
-        <select id="role" class="pi-auth-select">
-          <option value="CLIENT">مريض / عميل</option>
-          <option value="DOCTOR">طبيب</option>
-          <option value="FACILITY">منشأة طبية</option>
-        </select>
-
-        <button class="pi-auth-btn pi-auth-btn-email" type="submit" id="submitBtn">إنشاء الحساب</button>
-      </form>
+      <button id="registerBtn" type="button" class="pi-auth-btn pi-auth-btn-pi" style="margin-top:16px">
+        <span>π</span> إنشاء حساب بـ Pi
+      </button>
 
       <div class="pi-auth-trust">
-        <span>🔒 اتصال آمن</span>
+        <span>🔒 Pi فقط</span>
         <span>✓ موثوق</span>
       </div>
     </div>
 
-    <p id="msg"></p>
-
-    <a class="pi-auth-footer-link" href="/pi-email.html">لديك حساب؟ <strong style="color:var(--pi-accent)">سجّل الدخول</strong></a>
+    <p id="err" class="pi-auth-error"></p>
+    <a class="pi-auth-footer-link" href="/login">لديك حساب؟ <strong style="color:var(--pi-accent)">تسجيل الدخول</strong></a>
     <a class="pi-auth-back pi-auth-text-center" href="/" style="display:block">← العودة للرئيسية</a>
   </div>
 
   <script>
-  document.getElementById('togglePwd').addEventListener('click', function () {
-    var input = document.getElementById('password')
-    var show = input.type === 'password'
-    input.type = show ? 'text' : 'password'
-    this.textContent = show ? '🙈' : '👁'
-  })
+  (function () {
+    var btn = document.getElementById('registerBtn')
+    var errEl = document.getElementById('err')
+    var roleEl = document.getElementById('role')
 
-  document.getElementById('form').addEventListener('submit', function (e) {
-    e.preventDefault()
-    var btn = document.getElementById('submitBtn')
-    var msg = document.getElementById('msg')
-    msg.className = ''
-    msg.textContent = ''
-    btn.disabled = true
-    btn.innerHTML = '<span class="pi-auth-spinner"></span> جاري الإنشاء...'
-    fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: document.getElementById('email').value,
-        password: document.getElementById('password').value,
-        role: document.getElementById('role').value,
-      }),
-    })
-      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d } }) })
-      .then(function (res) {
-        if (!res.ok) {
-          var errMsg = 'فشل التسجيل'
-          if (res.d.data && res.d.data.message) errMsg = res.d.data.message
-          else if (res.d.message) errMsg = res.d.message
-          throw new Error(errMsg)
-        }
-        var payload = res.d.data || res.d
-        msg.className = 'pi-auth-success'
-        msg.textContent = payload.autoVerified
-          ? '✅ تم إنشاء الحساب! يمكنك الدخول مباشرة.'
-          : '✅ تم إنشاء الحساب! تحقق من بريدك ثم سجّل الدخول.'
-        setTimeout(function () { window.location.href = '/pi-email.html' }, 2500)
-      })
-      .catch(function (ex) {
-        msg.className = 'pi-auth-error'
-        msg.textContent = ex.message || 'حدث خطأ'
+    btn.addEventListener('click', function () {
+      errEl.textContent = ''
+      btn.disabled = true
+      btn.innerHTML = '<span class="pi-auth-spinner"></span> جاري الإنشاء...'
+      window.PiAuth.signUp(roleEl.value).catch(function (e) {
+        errEl.textContent = e.message || 'حدث خطأ'
         btn.disabled = false
-        btn.textContent = 'إنشاء الحساب'
+        btn.innerHTML = '<span>π</span> إنشاء حساب بـ Pi'
       })
-  })
+    })
+  })()
   </script>
 </body>
 </html>

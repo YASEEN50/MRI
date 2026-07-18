@@ -1,5 +1,6 @@
 import { encode } from 'next-auth/jwt'
 import { Role } from '@prisma/client'
+import { z } from 'zod'
 import { verifyPiAccessToken } from '@/lib/pi/verify-access-token'
 import { resolvePiLoginUser } from '@/lib/auth/account-linking'
 import { resolveMfaSessionFlags } from '@/lib/mfa/session-flags'
@@ -13,6 +14,7 @@ export type EstablishPiSessionResult =
       ok: true
       encodedToken: string
       redirectPath: string
+      mfaRequired: boolean
       user: {
         id: string
         role: Role
@@ -23,7 +25,12 @@ export type EstablishPiSessionResult =
     }
   | { ok: false; code: string; message: string; status: number }
 
-export async function establishPiSession(accessToken: string): Promise<EstablishPiSessionResult> {
+const REGISTERABLE_ROLES = ['CLIENT', 'DOCTOR', 'FACILITY'] as const
+
+export async function establishPiSession(
+  accessToken: string,
+  options?: { roleOnCreate?: (typeof REGISTERABLE_ROLES)[number] },
+): Promise<EstablishPiSessionResult> {
   if (!process.env.NEXTAUTH_SECRET) {
     return {
       ok: false,
@@ -43,22 +50,15 @@ export async function establishPiSession(accessToken: string): Promise<Establish
     }
   }
 
-  const user = await resolvePiLoginUser(piUser)
+  const { user } = await resolvePiLoginUser(piUser, {
+    roleOnCreate: options?.roleOnCreate,
+  })
 
   if (!user.isActive) {
     return {
       ok: false,
       code: 'ACCOUNT_DISABLED',
       message: 'تم تعليق هذا الحساب',
-      status: 403,
-    }
-  }
-
-  if ((user.role === Role.ADMIN || user.role === Role.OWNER) && user.mfaEnabled) {
-    return {
-      ok: false,
-      code: 'MFA_USE_EMAIL',
-      message: 'حساب الأدمن يتطلب الدخول بالبريد الإلكتروني (pi-email.html)',
       status: 403,
     }
   }
@@ -97,10 +97,22 @@ export async function establishPiSession(accessToken: string): Promise<Establish
     email: user.email,
   }
 
+  const mfaRequired = mfaFlags.mfaEnabled && !mfaFlags.mfaVerified
+  let redirectPath = resolvePostLoginPath({ user: sessionUser })
+  if (mfaRequired) {
+    redirectPath = '/login/mfa'
+  }
+
   return {
     ok: true,
     encodedToken,
-    redirectPath: resolvePostLoginPath({ user: sessionUser }),
+    redirectPath,
+    mfaRequired,
     user: sessionUser,
   }
 }
+
+export const PiSessionBodySchema = z.object({
+  accessToken: z.string().min(1),
+  role: z.enum(REGISTERABLE_ROLES).optional(),
+})

@@ -5,7 +5,7 @@ import SearchBar from '@/components/common/SearchBar'
 
 export default function HomeHeroSearch() {
   return (
-    <div className="max-w-xl mx-auto w-full animate-slide-up">
+    <div className="w-full animate-slide-up">
       <SearchBar variant="hero" />
     </div>
   )

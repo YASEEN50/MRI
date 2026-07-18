@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const piUser = await verifyPiAccessToken(parsed.data.accessToken)
     if (!piUser) return fromAppError(new UnauthorizedError('فشل التحقق من حساب Pi Network'))
 
-    const user = await resolvePiLoginUser(piUser)
+    const { user } = await resolvePiLoginUser(piUser)
 
     const fullUser = await prisma.user.findUniqueOrThrow({
       where: { id: user.id },

@@ -49,7 +49,7 @@ export default function AdminMfaSecurityPage() {
             <div className="space-y-3">
               <p className="text-emerald-400 font-medium">✅ MFA مفعّل على حسابك</p>
               <p className="text-slate-400 text-sm">
-                سيُطلب رمز التحقق عند كل تسجيل دخول بالبريد الإلكتروني.
+                سيُطلب رمز التحقق بعد كل تسجيل دخول عبر Pi Network.
               </p>
               <a
                 href={session?.user.role === 'OWNER' ? '/owner' : '/admin'}

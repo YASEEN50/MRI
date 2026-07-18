@@ -112,7 +112,8 @@ async function main() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: regEmail, password: 'Test@123456', role: 'CLIENT' }),
   })
-  if (reg.status === 200 || reg.status === 201) ok('Auth', 'POST /api/auth/register', regEmail)
+  if (reg.status === 403) ok('Auth', 'POST /api/auth/register disabled (Pi-only)', '403')
+  else if (reg.status === 200 || reg.status === 201) no('Auth', 'POST /api/auth/register should be disabled', regEmail)
   else no('Auth', 'POST /api/auth/register', `status=${reg.status} ${JSON.stringify(reg.json).slice(0,100)}`)
 
   // 4. Role-based API access

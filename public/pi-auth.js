@@ -223,7 +223,7 @@ window.PiAuth = (function () {
   function mapPiSessionError(data) {
     if (!data) return 'فشل تسجيل الدخول'
     var code = data.code || data.error
-    if (code === 'MFA_USE_EMAIL') return 'حساب الأدمن يتطلب الدخول بالبريد (pi-email.html)'
+    if (code === 'MFA_USE_EMAIL') return 'يلزم إكمال التحقق الثنائي بعد تسجيل الدخول بـ Pi'
     if (code === 'INVALID_PI_TOKEN') return 'فشل التحقق من Pi — افتح التطبيق داخل Pi Browser ووافق على المصادقة'
     if (code === 'ACCOUNT_DISABLED') return 'تم تعليق هذا الحساب'
     if (code === 'SERVER_MISCONFIGURED') return 'خطأ إعداد الخادم — تواصل مع الدعم'
@@ -241,14 +241,17 @@ window.PiAuth = (function () {
     window.location.href = path
   }
 
-  function establishSession(accessToken) {
+  function establishSession(accessToken, role) {
     return requestCookieAccess()
       .then(function () {
         return fetch('/api/auth/pi-session', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessToken: accessToken }),
+          body: JSON.stringify({
+            accessToken: accessToken,
+            role: role || undefined,
+          }),
         })
       })
       .then(function (res) {
@@ -265,6 +268,10 @@ window.PiAuth = (function () {
         }
         return flushPendingIncomplete(accessToken).then(function () {
           var path = inner.redirectPath || '/pi-app.html'
+          if (inner.mfaRequired) {
+            goToPath('/login/mfa')
+            return
+          }
           return readSession().then(function (s) {
             if (s && s.user) {
               goToPath(resolvePostLoginPath(s))
@@ -273,6 +280,16 @@ window.PiAuth = (function () {
             goToPath(path)
           })
         })
+      })
+  }
+
+  function signUp(role) {
+    clearSkipAuto()
+    return requestCookieAccess()
+      .then(authenticatePi)
+      .then(function (auth) {
+        if (!auth || !auth.accessToken) throw new Error('لم يتم استلام رمز Pi')
+        return establishSession(auth.accessToken, role)
       })
   }
 
@@ -290,7 +307,7 @@ window.PiAuth = (function () {
   function isEntryPath() {
     var p = location.pathname
     return p === '/' || p === '/login' || p === '/register' ||
-      p === '/pi.html' || p === '/pi-login.html' || p === '/pi-email.html'
+      p === '/pi.html' || p === '/pi-login.html'
   }
 
   var LOOP_KEY = 'pi_session_redirect_count'
@@ -367,6 +384,7 @@ window.PiAuth = (function () {
 
   return {
     signIn: signIn,
+    signUp: signUp,
     runOnLoad: runOnLoad,
     tryAutoSignIn: tryAutoSignIn,
     authenticatePi: authenticatePi,

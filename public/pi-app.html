@@ -38,7 +38,6 @@
         <a href="/doctors" class="pi-auth-btn pi-auth-btn-outline">الأطباء — حجز موعد</a>
         <a href="/dashboard/client/chat" class="pi-auth-btn pi-auth-btn-outline">المحادثات</a>
         <a href="/profile" class="pi-auth-btn pi-auth-btn-outline">الملف الشخصي</a>
-        <a id="linkEmailBtn" href="/pi-link-email.html" class="pi-auth-btn pi-auth-btn-outline" style="display:none">🔗 ربط البريد</a>
         <a href="/pi-auth-hub.html" class="pi-auth-btn pi-auth-btn-outline">🧪 مركز الاختبار</a>
         <button type="button" id="logoutBtn" class="pi-auth-btn pi-auth-btn-outline">تسجيل الخروج</button>
       </div>
@@ -46,8 +45,8 @@
       <button id="piBtn" type="button" class="pi-auth-btn pi-auth-btn-pi" style="display:none">
         <span>π</span> تسجيل الدخول بـ Pi
       </button>
-      <a id="emailBtn" href="/pi-email.html" class="pi-auth-btn pi-auth-btn-outline" style="display:none;margin-top:10px">
-        📧 الدخول بالبريد (للاختبار)
+      <a id="registerBtn" href="/register" class="pi-auth-btn pi-auth-btn-outline" style="display:none;margin-top:10px">
+        إنشاء حساب جديد بـ Pi
       </a>
     </div>
 
@@ -92,9 +91,9 @@
 
     function showGuest() {
       document.getElementById('user').className = 'pi-auth-hint'
-      document.getElementById('user').textContent = 'لم يتم تسجيل الدخول — اختر طريقة الدخول'
+      document.getElementById('user').textContent = 'لم يتم تسجيل الدخول — سجّل الدخول عبر Pi'
       document.getElementById('piBtn').style.display = 'block'
-      document.getElementById('emailBtn').style.display = 'block'
+      document.getElementById('registerBtn').style.display = 'block'
     }
 
     requestCookieAccess().then(function () {
@@ -119,9 +118,6 @@
         document.getElementById('welcomeTitle').textContent = 'مرحباً'
         document.getElementById('user').className = 'pi-auth-hint'
         document.getElementById('user').textContent = 'مسجّل كـ ' + label
-        if (!s.user.email && s.user.piUsername) {
-          document.getElementById('linkEmailBtn').style.display = 'block'
-        }
         document.getElementById('menu').style.display = 'block'
       })
       .catch(function () {

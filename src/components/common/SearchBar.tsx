@@ -2,6 +2,7 @@
 // src/components/common/SearchBar.tsx
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/cn'
 
 interface SearchResult {
@@ -15,6 +16,7 @@ interface SearchBarProps {
 }
 
 export default function SearchBar({ variant = 'default' }: SearchBarProps) {
+  const t = useTranslations('home')
   const [query,   setQuery]   = useState('')
   const [results, setResults] = useState<SearchResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -54,15 +56,24 @@ export default function SearchBar({ variant = 'default' }: SearchBarProps) {
   return (
     <div className={cn('relative', isHero && 'w-full')} ref={ref}>
       <div className="relative">
+        {isHero && (
+          <div className="absolute end-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        )}
         <input
           value={query}
           onChange={e => setQuery(e.target.value)}
           onFocus={() => query.length >= 2 && setOpen(true)}
-          placeholder="ابحث عن طبيب، تخصص..."
+          placeholder={isHero ? t('search_placeholder') : t('search_placeholder_short')}
           className={cn(
-            'bg-surface/80 border border-white/10 rounded-xl px-4 py-2 text-white text-sm placeholder-slate-500',
-            'focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all',
-            isHero ? 'w-full py-3.5 text-base shadow-card' : 'w-56 focus:w-72',
+            'bg-surface/80 border border-white/10 text-white placeholder-slate-500',
+            'focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300',
+            isHero
+              ? 'w-full py-4 pe-12 ps-5 text-base rounded-2xl shadow-card hover:border-white/20'
+              : 'rounded-xl px-4 py-2 text-sm w-56 focus:w-72',
           )}
           dir="rtl"
         />
