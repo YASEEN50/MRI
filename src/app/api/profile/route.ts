@@ -5,6 +5,7 @@ import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { canActAsPatient } from '@/lib/client/patient-access'
 
 const ProfileSchema = z.object({
   firstName:        z.string().max(50).optional(),
@@ -26,14 +27,15 @@ const ProfileSchema = z.object({
 })
 
 // GET - جلب الملف الشخصي
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const auth = await requireAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const { userId, role } = auth.context
+    const asPatient = req.nextUrl.searchParams.get('as') === 'patient'
 
-    if (role === Role.CLIENT) {
+    if (role === Role.CLIENT || (canActAsPatient(role) && asPatient)) {
       const profile = await prisma.clientProfile.findUnique({
         where: { userId },
       })

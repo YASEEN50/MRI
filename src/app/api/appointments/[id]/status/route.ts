@@ -10,6 +10,7 @@ import {
   notifyAppointmentCancelled,
 } from '@/lib/appointments/notifications'
 import { notifyReviewRequested } from '@/lib/reviews/notifications'
+import { canActAsPatient, isAppointmentOwner } from '@/lib/client/patient-access'
 import { z } from 'zod'
 
 const UpdateStatusSchema = z.object({
@@ -23,7 +24,7 @@ async function canManageAppointment(
   role: Role,
   userId: string,
 ): Promise<boolean> {
-  if (role === Role.CLIENT) return appointment.clientId === userId
+  if (canActAsPatient(role) && isAppointmentOwner(userId, appointment.clientId)) return true
 
   if (role === Role.DOCTOR && appointment.doctorId) {
     const doctor = await prisma.doctorProfile.findUnique({
@@ -69,11 +70,15 @@ export async function PUT(
     const allowed = await canManageAppointment(appointment, role, userId)
     if (!allowed) return ok({ error: true, message: 'غير مصرح بتعديل هذا الموعد' })
 
-    if (status === AppointmentStatus.CONFIRMED && role === Role.CLIENT) {
+    if (status === AppointmentStatus.CONFIRMED && canActAsPatient(role)) {
       return ok({ error: true, message: 'فقط الطبيب أو المنشأة يمكنهم تأكيد الموعد' })
     }
 
-    if (status === AppointmentStatus.CANCELLED && role === Role.CLIENT && appointment.clientId !== userId) {
+    if (
+      status === AppointmentStatus.CANCELLED &&
+      canActAsPatient(role) &&
+      !isAppointmentOwner(userId, appointment.clientId)
+    ) {
       return ok({ error: true, message: 'لا يمكنك إلغاء موعد لا يخصك' })
     }
 

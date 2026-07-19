@@ -1,11 +1,12 @@
 // src/app/api/chat/route.ts
 import { NextRequest } from 'next/server'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requireAuth, requirePatientAuth } from '@/infrastructure/auth/providers/role-guard'
 import { prisma, db } from '@/lib/prisma'
 import { ok, created, fromAppError, serverError } from '@/lib/api-response'
 import { Role } from '@prisma/client'
 import { z } from 'zod'
 import { listChatRoomsForUser, type ChatRoomFilter } from '@/lib/chat/list-rooms'
+import { ensureClientProfile } from '@/lib/client/patient-access'
 
 const CreateRoomSchema = z.object({
   doctorId:      z.string().uuid(),
@@ -32,17 +33,14 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.CLIENT] })
+    const auth = await requirePatientAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body   = await req.json()
     const parsed = CreateRoomSchema.safeParse(body)
     if (!parsed.success) return ok({ error: true, message: 'بيانات غير صحيحة' })
 
-    const profile = await prisma.clientProfile.findUnique({
-      where: { userId: auth.context.userId }, select: { id: true },
-    })
-    if (!profile) return ok({ error: true, message: 'ملف المريض غير موجود' })
+    const profile = await ensureClientProfile(auth.context.userId)
 
     const existing = await db.chatRoom.findFirst({
       where: {

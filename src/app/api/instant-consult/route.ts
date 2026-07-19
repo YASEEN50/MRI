@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { Role, InstantConsultStatus } from '@prisma/client'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requireAuth, requirePatientAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, created, fromAppError, serverError, fromZodError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
+import { canActAsPatient, ensureClientProfile, getClientProfileId } from '@/lib/client/patient-access'
 import {
   doctorHasActiveInstantSession,
   expireStaleInstantConsults,
@@ -81,15 +82,12 @@ export async function GET() {
 
     const { userId, role } = auth.context
 
-    if (role === Role.CLIENT) {
-      const profile = await prisma.clientProfile.findUnique({
-        where: { userId },
-        select: { id: true },
-      })
-      if (!profile) return ok([])
+    if (canActAsPatient(role)) {
+      const profileId = await getClientProfileId(userId)
+      if (!profileId) return ok([])
 
       const requests = await prisma.instantConsultRequest.findMany({
-        where: { clientId: profile.id },
+        where: { clientId: profileId },
         orderBy: { createdAt: 'desc' },
         take: 20,
         include: {
@@ -158,18 +156,14 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.CLIENT] })
+    const auth = await requirePatientAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body = await req.json()
     const parsed = CreateSchema.safeParse(body)
     if (!parsed.success) return fromZodError(parsed.error)
 
-    const profile = await prisma.clientProfile.findUnique({
-      where: { userId: auth.context.userId },
-      select: { id: true },
-    })
-    if (!profile) return ok({ error: true, message: 'أكمل ملفك الشخصي أولاً' })
+    const profile = await ensureClientProfile(auth.context.userId)
 
     const activeClientRequest = await prisma.instantConsultRequest.findFirst({
       where: {

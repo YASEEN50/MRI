@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { Role } from '@prisma/client'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requirePatientAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, created, fromAppError, serverError } from '@/lib/api-response'
 import { createDoctorReview } from '@/lib/reviews/create-review'
 import { createInstantConsultReview } from '@/lib/reviews/create-instant-consult-review'
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const auth = await requireAuth({ roles: [Role.CLIENT] })
+    const auth = await requirePatientAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body   = await req.json()

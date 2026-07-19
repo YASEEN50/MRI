@@ -8,6 +8,7 @@ import { fulfillPaidAdPayment } from '@/lib/payment/fulfill-paid-ad'
 import { getAdSettings } from '@/lib/ads/settings'
 import { adPlanPrice } from '@/lib/ads/pricing'
 import type { PiPaymentDto } from '@/lib/pi/pi-payment-dto'
+import { canActAsPatient } from '@/lib/client/patient-access'
 
 function txNotes(payload: Record<string, unknown>) {
   return JSON.stringify(payload)
@@ -174,7 +175,7 @@ async function createPendingTransaction(userId: string, role: Role, payment: PiP
   }
 
   if (purpose === 'APPOINTMENT') {
-    if (role !== Role.CLIENT) throw new Error('غير مصرح')
+    if (!canActAsPatient(role)) throw new Error('غير مصرح')
     const appointmentId = payment.metadata.appointmentId as string | undefined
     const paymentType = payment.metadata.paymentType as 'FULL' | 'DEPOSIT' | undefined
     if (!appointmentId || !paymentType) throw new Error('بيانات الموعد ناقصة')
@@ -254,7 +255,7 @@ async function createPendingTransaction(userId: string, role: Role, payment: PiP
   }
 
   if (purpose === 'INSTANT_CONSULT') {
-    if (role !== Role.CLIENT) throw new Error('غير مصرح')
+    if (!canActAsPatient(role)) throw new Error('غير مصرح')
     const instantConsultId = payment.metadata.instantConsultId as string | undefined
     if (!instantConsultId) throw new Error('معرف الاستشارة الفورية مطلوب')
 

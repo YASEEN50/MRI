@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { InstantConsultStatus, Role } from '@prisma/client'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requirePatientAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 
@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await requireAuth({ roles: [Role.CLIENT] })
+    const auth = await requirePatientAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const { id } = await params

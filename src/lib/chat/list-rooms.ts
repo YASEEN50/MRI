@@ -1,5 +1,6 @@
 import { ChatRoomStatus, Role } from '@prisma/client'
 import { prisma, db } from '@/lib/prisma'
+import { canActAsPatient, getClientProfileId } from '@/lib/client/patient-access'
 
 export type ChatRoomFilter = 'active' | 'closed'
 
@@ -13,13 +14,10 @@ export async function listChatRoomsForUser(
   filter: ChatRoomFilter = 'active',
 ) {
   let where: { clientId?: string; doctorId?: string } = {}
-  if (role === Role.CLIENT) {
-    const profile = await prisma.clientProfile.findUnique({
-      where: { userId },
-      select: { id: true },
-    })
-    if (!profile) return []
-    where.clientId = profile.id
+  if (canActAsPatient(role)) {
+    const profileId = await getClientProfileId(userId)
+    if (!profileId) return []
+    where.clientId = profileId
   } else if (role === Role.DOCTOR) {
     const doctor = await prisma.doctorProfile.findUnique({
       where: { userId },
@@ -52,7 +50,7 @@ export async function listChatRoomsForUser(
         avatarUrl?: string | null
       } | null = null
 
-      if (role === Role.CLIENT) {
+      if (canActAsPatient(role)) {
         const doc = await prisma.doctorProfile.findUnique({
           where: { id: room.doctorId },
           select: { firstName: true, lastName: true, specialization: true, avatarUrl: true },

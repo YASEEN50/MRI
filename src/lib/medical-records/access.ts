@@ -2,6 +2,7 @@
 
 import { Role, AppointmentStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { canActAsPatient } from '@/lib/client/patient-access'
 
 export interface AuthContext {
   userId: string
@@ -18,7 +19,13 @@ export async function canAccessMedicalRecord(
     sharedUntil: Date | null
   }
 ): Promise<boolean> {
-  if (auth.role === Role.ADMIN || auth.role === Role.OWNER) return true
+  if (auth.role === Role.ADMIN || auth.role === Role.OWNER) {
+    const profile = await prisma.clientProfile.findUnique({
+      where: { userId: auth.userId },
+      select: { id: true },
+    })
+    return profile?.id === record.clientId
+  }
 
   if (auth.role === Role.CLIENT) {
     const profile = await prisma.clientProfile.findUnique({
