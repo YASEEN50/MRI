@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { prisma } from '@/lib/prisma'
-import { getPiNetworkApiKey } from '@/lib/pi/pi-api-key'
+import { getPiNetworkApiKey, PI_PAYMENTS_NOT_CONFIGURED_MSG } from '@/lib/pi/pi-api-key'
 import {
   IPiPaymentService,
   CreatePiPaymentInput,
@@ -125,14 +125,26 @@ class RealPiPaymentService implements IPiPaymentService {
   }
 }
 
+class UnavailablePiPaymentService implements IPiPaymentService {
+  private fail(): never {
+    throw new Error(PI_PAYMENTS_NOT_CONFIGURED_MSG)
+  }
+  async createPayment(): Promise<PiPaymentResult> { this.fail() }
+  async approvePayment(): Promise<void> { this.fail() }
+  async completePayment(): Promise<PiPaymentResult> { this.fail() }
+  async getPaymentStatus(): Promise<PaymentStatus> { this.fail() }
+  async handleIncompletePayment(): Promise<void> { this.fail() }
+  async createA2UPayment(): Promise<A2UPaymentResult> { this.fail() }
+}
+
 function createPiPaymentService(): IPiPaymentService {
   const apiKey = getPiNetworkApiKey()
   if (apiKey) return new RealPiPaymentService(apiKey)
-  if (process.env.PI_SANDBOX === 'true') return new SimulatedPiPaymentService()
   if (process.env.NODE_ENV === 'production') {
     console.error('[Pi Payment] PI_API_KEY / PI_NETWORK_API_KEY missing in production')
-    return new SimulatedPiPaymentService()
+    return new UnavailablePiPaymentService()
   }
+  if (process.env.PI_SANDBOX === 'true') return new SimulatedPiPaymentService()
   console.warn('[Pi Payment] No Pi API key — dev simulation mode (set PI_SANDBOX=true to allow)')
   return new SimulatedPiPaymentService()
 }

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { payForAppointment, piPaymentErrorMessage } from '@/lib/pi/pi-payment-client'
+import PiPaymentConsent from '@/components/payments/PiPaymentConsent'
 import {
   resolveAppointmentPayment,
   type AppointmentPaymentPolicy,
@@ -34,6 +35,7 @@ export default function PaymentForm({
 }: PaymentFormProps) {
   const router = useRouter()
   const [isPaying, setIsPaying] = useState(false)
+  const [paymentConsent, setPaymentConsent] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const depositPctAmount = fee * (depositPercentage / 100)
@@ -48,6 +50,10 @@ export default function PaymentForm({
   })
 
   async function handlePay() {
+    if (!paymentConsent) {
+      setMessage({ type: 'error', text: 'يرجى الموافقة على شروط الدفع عبر Pi' })
+      return
+    }
     setIsPaying(true)
     setMessage(null)
     try {
@@ -100,11 +106,17 @@ export default function PaymentForm({
       <div className="flex flex-col gap-1">
         <button
           onClick={handlePay}
-          disabled={isPaying}
+          disabled={isPaying || !paymentConsent}
           className="px-3 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-300 rounded-lg text-xs transition-all disabled:opacity-50"
         >
           {isPaying ? 'جاري الدفع...' : `🟣 ادفع ${quote.amount.toFixed(4)} Pi`}
         </button>
+        <PiPaymentConsent
+          checked={paymentConsent}
+          onCheckedChange={setPaymentConsent}
+          amount={quote.amount}
+          serviceLabel="موعد طبي"
+        />
         {message?.type === 'error' && (
           <p className="text-red-400 text-xs">{message.text}</p>
         )}
@@ -150,9 +162,16 @@ export default function PaymentForm({
         </div>
       )}
 
+      <PiPaymentConsent
+        checked={paymentConsent}
+        onCheckedChange={setPaymentConsent}
+        amount={quote.amount}
+        serviceLabel="موعد طبي"
+      />
+
       <button
         onClick={handlePay}
-        disabled={isPaying}
+        disabled={isPaying || !paymentConsent}
         className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 disabled:opacity-50 text-white rounded-xl font-medium transition-all"
       >
         {isPaying ? 'جاري الدفع...' : `دفع ${quote.amount.toFixed(4)} Pi عبر Pi Network`}

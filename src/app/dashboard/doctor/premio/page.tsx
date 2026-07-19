@@ -6,6 +6,7 @@ import PremioBadge from '@/components/premio/PremioBadge'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { payForPremioPlan, piPaymentErrorMessage } from '@/lib/pi/pi-payment-client'
+import PiPaymentConsent from '@/components/payments/PiPaymentConsent'
 import type { PremioTier } from '@/lib/premio/tiers'
 
 interface PremioSettings { monthlyPrice: number; yearlyPrice: number; lifetimePrice: number; isMonthlyEnabled: boolean; isYearlyEnabled: boolean; isLifetimeEnabled: boolean }
@@ -40,6 +41,7 @@ export default function DoctorPremioPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
   const [isPaying, setIsPaying] = useState(false)
+  const [paymentConsent, setPaymentConsent] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => { if (status === 'unauthenticated') router.push('/login') }, [status, router])
@@ -56,7 +58,10 @@ export default function DoctorPremioPage() {
 
   async function handleSubscribe() {
     if (!selectedPlan || !settings) return
-
+    if (!paymentConsent) {
+      setMessage({ type: 'error', text: 'يرجى الموافقة على شروط الدفع عبر Pi' })
+      return
+    }
     let price = 0
     let label = ''
     if (selectedPlan === 'MONTHLY') { price = settings.monthlyPrice; label = 'شهري' }
@@ -174,7 +179,14 @@ export default function DoctorPremioPage() {
               ))}
             </div>
 
-            <button onClick={handleSubscribe} disabled={!selectedPlan || isPaying}
+            <PiPaymentConsent
+              checked={paymentConsent}
+              onCheckedChange={setPaymentConsent}
+              amount={plans.find(p => p.key === selectedPlan)?.price}
+              serviceLabel="اشتراك البريميو"
+            />
+
+            <button onClick={handleSubscribe} disabled={!selectedPlan || isPaying || !paymentConsent}
               className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition-all">
               {isPaying ? 'جاري الدفع عبر Pi...' : selectedPlan ? `ادفع ${plans.find(p => p.key === selectedPlan)?.price} π — ${plans.find(p => p.key === selectedPlan)?.label}` : 'اختر خطة للمتابعة'}
             </button>

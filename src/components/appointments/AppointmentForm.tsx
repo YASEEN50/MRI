@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import DepositCalculator from '@/components/payments/DepositCalculator'
+import PiPaymentConsent from '@/components/payments/PiPaymentConsent'
 import { payForAppointment, piPaymentErrorMessage } from '@/lib/pi/pi-payment-client'
 import {
   resolveAppointmentPayment,
@@ -52,6 +53,7 @@ export default function AppointmentForm({
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [paymentPending, setPaymentPending] = useState(false)
+  const [paymentConsent, setPaymentConsent] = useState(false)
 
   const fee = consultationFee ?? 0
 
@@ -116,6 +118,10 @@ export default function AppointmentForm({
     }
     if (!selectedSlot) {
       setError('يرجى اختيار وقت متاح')
+      return
+    }
+    if (requiresUpfrontPayment && !paymentConsent) {
+      setError('يرجى الموافقة على شروط الدفع عبر Pi')
       return
     }
 
@@ -314,10 +320,24 @@ export default function AppointmentForm({
         />
       </div>
 
+      {requiresUpfrontPayment && (
+        <PiPaymentConsent
+          checked={paymentConsent}
+          onCheckedChange={setPaymentConsent}
+          amount={paymentQuote.amount}
+          serviceLabel="حجز موعد طبي"
+        />
+      )}
+
       <button
         type="button"
         onClick={() => void handleBook()}
-        disabled={isLoading || paymentPending || !selectedSlot}
+        disabled={
+          isLoading ||
+          paymentPending ||
+          !selectedSlot ||
+          (requiresUpfrontPayment && !paymentConsent)
+        }
         className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all"
       >
         {submitLabel}

@@ -7,6 +7,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import Navbar from '@/components/common/Navbar'
 import { payForInstantConsult, piPaymentErrorMessage } from '@/lib/pi/pi-payment-client'
+import PiPaymentConsent from '@/components/payments/PiPaymentConsent'
 import { INSTANT_CONSULT_ACCEPT_TIMEOUT_SEC } from '@/lib/instant-consult/constants'
 import { instantConsultRatingPath, isInstantConsultReviewPending } from '@/lib/reviews/paths'
 
@@ -48,6 +49,7 @@ export default function ConsultNowPage() {
   const [piCredit, setPiCredit] = useState(0)
   const [broadcastingSpec, setBroadcastingSpec] = useState<string | null>(null)
   const [pendingReviews, setPendingReviews] = useState<ClientConsultRequest[]>([])
+  const [paymentConsent, setPaymentConsent] = useState(false)
 
   const loadPendingReviews = useCallback(async () => {
     if (status !== 'authenticated') return
@@ -156,6 +158,10 @@ export default function ConsultNowPage() {
       router.push('/login?redirect=/consult-now')
       return
     }
+    if (!paymentConsent) {
+      setError('يرجى الموافقة على شروط الدفع عبر Pi')
+      return
+    }
     setError('')
     setBroadcastingSpec(specialization)
 
@@ -194,6 +200,10 @@ export default function ConsultNowPage() {
   async function startConsult(doctor: AvailableDoctor) {
     if (!session) {
       router.push('/login?redirect=/consult-now')
+      return
+    }
+    if (!paymentConsent) {
+      setError('يرجى الموافقة على شروط الدفع عبر Pi')
       return
     }
     setSelected(doctor)
@@ -354,6 +364,15 @@ export default function ConsultNowPage() {
               />
             </div>
 
+            {session && (
+              <PiPaymentConsent
+                checked={paymentConsent}
+                onCheckedChange={setPaymentConsent}
+                serviceLabel="استشارة فورية"
+                showRefundNote
+              />
+            )}
+
             {loading ? (
               <div className="flex justify-center py-16">
                 <div className="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full" />
@@ -383,7 +402,7 @@ export default function ConsultNowPage() {
                         <button
                           key={spec}
                           type="button"
-                          disabled={!!payingDoctorId || !!broadcastingSpec}
+                          disabled={!!payingDoctorId || !!broadcastingSpec || !paymentConsent}
                           onClick={() => void startBroadcast(spec)}
                           className="px-4 py-2 rounded-xl bg-purple-600/80 hover:bg-purple-500 text-white text-xs font-medium disabled:opacity-50"
                         >
@@ -416,7 +435,7 @@ export default function ConsultNowPage() {
                     </div>
                     <button
                       type="button"
-                      disabled={!!payingDoctorId}
+                      disabled={!!payingDoctorId || !paymentConsent}
                       onClick={() => void startConsult(d)}
                       className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium disabled:opacity-50 flex-shrink-0"
                     >

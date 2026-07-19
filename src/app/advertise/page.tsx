@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Navbar from '@/components/common/Navbar'
 import Link from 'next/link'
 import { payForAdvertisement, piPaymentErrorMessage } from '@/lib/pi/pi-payment-client'
+import PiPaymentConsent from '@/components/payments/PiPaymentConsent'
 
 interface Pricing {
   sidebarWeeklyPricePi: number
@@ -31,6 +32,7 @@ export default function AdvertisePage() {
     imageUrl: '',
   })
   const [submitting, setSubmitting] = useState(false)
+  const [paymentConsent, setPaymentConsent] = useState(false)
   const [result, setResult] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
   useEffect(() => {
@@ -67,6 +69,10 @@ export default function AdvertisePage() {
     }
     if (!pricing?.isAcceptingRequests) {
       setResult({ type: 'error', msg: 'استقبال طلبات الإعلان متوقف حالياً' })
+      return
+    }
+    if (!paymentConsent) {
+      setResult({ type: 'error', msg: 'يرجى الموافقة على شروط الدفع عبر Pi' })
       return
     }
 
@@ -222,9 +228,16 @@ export default function AdvertisePage() {
             </div>
           )}
 
+          <PiPaymentConsent
+            checked={paymentConsent}
+            onCheckedChange={setPaymentConsent}
+            amount={selectedPrice ?? undefined}
+            serviceLabel="نشر إعلان"
+          />
+
           <button
             type="submit"
-            disabled={submitting || !pricing?.isAcceptingRequests}
+            disabled={submitting || !pricing?.isAcceptingRequests || !paymentConsent}
             className="w-full py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 disabled:opacity-50 transition-all"
           >
             {submitting

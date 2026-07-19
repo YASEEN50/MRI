@@ -1,4 +1,5 @@
-import { Role, PremioType, AdPlan, PaidAdStatus } from '@prisma/client'
+import { Role, PremioType, AdPlan, PaidAdStatus, InstantConsultStatus } from '@prisma/client'
+import { fulfillInstantConsultPayment } from '@/lib/payment/fulfill'
 import { prisma } from '@/lib/prisma'
 import { piPaymentService } from '@/infrastructure/pi-network/pi-payment.service'
 import { splitDoctorPayment, splitPremioPayment, settleDoctorPayment } from '@/lib/payment/platform-fee'
@@ -64,6 +65,7 @@ export async function processIncompletePiPayment(
       appointmentId?: string
       paymentType?: 'FULL' | 'DEPOSIT'
       transactionType?: 'APPOINTMENT_FEE' | 'DEPOSIT' | 'FINAL_PAYMENT'
+      instantConsultId?: string
       adId?: string
     }
 
@@ -111,6 +113,16 @@ export async function processIncompletePiPayment(
         transaction.id,
       )
       return { message: 'تم إكمال دفع الإعلان المعلق' }
+    }
+
+    if (meta.purpose === 'INSTANT_CONSULT' && meta.instantConsultId) {
+      await fulfillInstantConsultPayment(
+        meta.instantConsultId,
+        userId,
+        Number(transaction.amountTotal),
+        transaction.id,
+      )
+      return { message: 'تم إكمال دفع الاستشارة الفورية المعلق' }
     }
 
     return { message: 'تم إكمال الدفع المعلق' }
@@ -237,6 +249,51 @@ async function createPendingTransaction(userId: string, role: Role, payment: PiP
         platformFee,
         receiverAmount,
         notes: txNotes({ piPaymentId: paymentId, purpose: 'PAID_AD', adId, adPlan }),
+      },
+    })
+  }
+
+  if (purpose === 'INSTANT_CONSULT') {
+    if (role !== Role.CLIENT) throw new Error('غير مصرح')
+    const instantConsultId = payment.metadata.instantConsultId as string | undefined
+    if (!instantConsultId) throw new Error('معرف الاستشارة الفورية مطلوب')
+
+    const profile = await prisma.clientProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+    if (!profile) throw new Error('ملف المريض غير موجود')
+
+    const consult = await prisma.instantConsultRequest.findFirst({
+      where: {
+        id: instantConsultId,
+        clientId: profile.id,
+        status: InstantConsultStatus.AWAITING_PAYMENT,
+      },
+    })
+    if (!consult) throw new Error('طلب الاستشارة غير موجود')
+
+    const expected = Number(consult.fee) - Number(consult.creditApplied ?? 0)
+    if (Math.abs(expected - amount) > 0.0001) {
+      throw new Error('مبلغ الدفع لا يطابق رسوم الاستشارة')
+    }
+
+    const { platformFee, receiverAmount } = splitDoctorPayment(amount)
+    return prisma.transaction.create({
+      data: {
+        userId,
+        doctorId: consult.doctorId ?? undefined,
+        type: 'INSTANT_CONSULT',
+        status: 'PENDING',
+        amountTotal: amount,
+        platformFee,
+        receiverAmount,
+        notes: txNotes({
+          piPaymentId: paymentId,
+          purpose: 'INSTANT_CONSULT',
+          instantConsultId,
+          transactionType: 'INSTANT_CONSULT',
+        }),
       },
     })
   }
