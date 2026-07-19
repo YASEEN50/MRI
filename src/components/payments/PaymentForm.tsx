@@ -18,7 +18,8 @@ interface PaymentFormProps {
   depositAmount?: number | null
   isPaid?: boolean
   onSuccess?: () => void
-  /** full = breakdown card; compact = pay button only */
+  /** Required for PAY_ON_SERVICE — true when appointment status is COMPLETED */
+  serviceCompleted?: boolean
   variant?: 'full' | 'compact'
 }
 
@@ -31,6 +32,7 @@ export default function PaymentForm({
   depositAmount = null,
   isPaid = false,
   onSuccess,
+  serviceCompleted = false,
   variant = 'full',
 }: PaymentFormProps) {
   const router = useRouter()
@@ -47,6 +49,7 @@ export default function PaymentForm({
     isDepositPaid,
     depositAmount,
     isPaid,
+    serviceCompleted,
   })
 
   async function handlePay() {
@@ -65,6 +68,7 @@ export default function PaymentForm({
         isDepositPaid,
         depositAmount,
         isPaid,
+        serviceCompleted,
       })
       if (variant === 'compact') {
         onSuccess?.()
@@ -90,11 +94,13 @@ export default function PaymentForm({
 
   if (isPaid) return null
 
-  if (paymentPolicy === 'PAY_ON_SERVICE') {
+  if (paymentPolicy === 'PAY_ON_SERVICE' && !serviceCompleted) {
     if (variant === 'compact') return null
     return (
       <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4">
-        <p className="text-blue-400 text-sm text-center">💳 الدفع يتم بعد انتهاء الخدمة — {fee} Pi</p>
+        <p className="text-blue-400 text-sm text-center">
+          💳 الدفع بـ Pi ({fee} π) بعد إتمام الموعد — سيظهر زر الدفع عند اكتمال الزيارة
+        </p>
       </div>
     )
   }

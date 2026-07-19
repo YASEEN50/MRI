@@ -110,6 +110,8 @@ export interface PayForAppointmentInput {
   isDepositPaid?: boolean
   depositAmount?: number | null
   isPaid?: boolean
+  /** When true, PAY_ON_SERVICE unlocks post-visit payment */
+  serviceCompleted?: boolean
 }
 
 /** Appointment fee / deposit via Pi U2A */

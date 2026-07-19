@@ -5,6 +5,7 @@ import {
 } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { piPaymentService } from '@/infrastructure/pi-network/pi-payment.service'
+import { requirePiKycForWithdrawal } from '@/lib/pi/kyc-withdrawal'
 
 export const MIN_DOCTOR_WITHDRAWAL_PI = 1
 
@@ -77,6 +78,9 @@ export async function requestDoctorWithdrawal(
       message: 'اربط حساب Pi أولاً من الملف الشخصي (تسجيل دخول عبر Pi Browser)',
     }
   }
+
+  const kycCheck = await requirePiKycForWithdrawal(doctor.user.piUid)
+  if (!kycCheck.ok) return kycCheck
 
   const balance = Number(doctor.piBalance)
   if (amount > balance + 0.0001) {

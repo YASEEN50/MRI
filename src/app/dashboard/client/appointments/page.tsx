@@ -217,7 +217,12 @@ function AppointmentCard({
             canJoinVideo={apt.canJoinVideo}
             compact
           />
-          {!apt.isPaid && apt.fee && ['PENDING', 'CONFIRMED'].includes(apt.status) && (
+          {!apt.isPaid && apt.fee && (
+            (['PENDING', 'CONFIRMED'].includes(apt.status) &&
+              (apt.paymentPolicy ?? 'PAY_ON_SERVICE') !== 'PAY_ON_SERVICE') ||
+            (apt.status === 'COMPLETED' &&
+              (apt.paymentPolicy ?? 'PAY_ON_SERVICE') === 'PAY_ON_SERVICE')
+          ) && (
             <PaymentForm
               variant="compact"
               appointmentId={apt.id}
@@ -227,6 +232,7 @@ function AppointmentCard({
               isDepositPaid={apt.isDepositPaid}
               depositAmount={apt.depositAmount}
               isPaid={apt.isPaid}
+              serviceCompleted={apt.status === 'COMPLETED'}
               onSuccess={onRefresh}
             />
           )}
