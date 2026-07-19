@@ -1,6 +1,11 @@
 import { TransactionStatus, TransactionType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { settleDoctorPayment, splitDoctorPayment } from '@/lib/payment/platform-fee'
+import {
+  buildInstantConsultRefundMessage,
+  splitInstantConsultRefund,
+} from '@/lib/payment/instant-consult-refund-split'
+import { sendA2UPayout } from '@/lib/pi/a2u-payout'
 
 function parseNotes(notes: string | null): Record<string, unknown> {
   try {
@@ -75,16 +80,32 @@ export async function settleInstantConsultOnAccept(instantConsultId: string): Pr
   })
 }
 
+export type InstantConsultRefundResult = {
+  refunded: boolean
+  amount?: number
+  already?: boolean
+  creditRefund?: number
+  walletRefund?: number
+  walletMode?: 'completed' | 'pending' | 'skipped'
+}
+
 /**
- * Refund patient platform credit when consult is rejected or expires.
- * Claws back doctor balance if a legacy payment was settled immediately.
+ * Refund instant consult: credit portion → piCreditBalance; Pi portion → A2U wallet when possible.
  */
 export async function refundInstantConsultPayment(
   instantConsultId: string,
-): Promise<{ refunded: boolean; amount?: number; already?: boolean }> {
+): Promise<InstantConsultRefundResult> {
   const request = await prisma.instantConsultRequest.findUnique({
     where: { id: instantConsultId },
-    include: { client: { select: { id: true, userId: true } } },
+    include: {
+      client: {
+        select: {
+          id: true,
+          userId: true,
+          user: { select: { piUid: true, piUsername: true } },
+        },
+      },
+    },
   })
   if (!request?.isPaid) return { refunded: false, already: true }
 
@@ -93,7 +114,7 @@ export async function refundInstantConsultPayment(
   const existingRefund = await prisma.transaction.findFirst({
     where: {
       type: TransactionType.REFUND,
-      status: TransactionStatus.COMPLETED,
+      status: { in: [TransactionStatus.COMPLETED, TransactionStatus.PENDING] },
       notes: { contains: instantConsultId },
     },
   })
@@ -102,9 +123,59 @@ export async function refundInstantConsultPayment(
   }
 
   const meta = tx ? parseNotes(tx.notes) : {}
-  // Full consult fee (π from wallet + platform credit applied at checkout)
-  const amount = Number(request.fee)
+  const fee = Number(request.fee)
+  const creditApplied = Number(request.creditApplied ?? 0)
+  const paidWithCreditOnly = meta.paidWithCredit === true
+
+  let split = splitInstantConsultRefund({
+    fee,
+    creditApplied,
+    piTransactionTotal: tx ? Number(tx.amountTotal) : null,
+    paidWithCreditOnly,
+  })
+
+  let walletMode: 'completed' | 'pending' | 'skipped' = 'skipped'
+  let a2uMeta: Record<string, unknown> = {}
+
+  const piUid = request.client.user.piUid
+  if (split.walletRefund > 0.0001 && piUid) {
+    const payout = await sendA2UPayout({
+      uid: piUid,
+      amount: split.walletRefund,
+      memo: 'MRI — استرداد استشارة فورية',
+      metadata: { purpose: 'INSTANT_CONSULT_REFUND', instantConsultId },
+    })
+
+    if (payout.ok && payout.mode === 'completed') {
+      walletMode = 'completed'
+      a2uMeta = {
+        piPaymentId: payout.piPaymentId,
+        txHash: payout.txHash,
+        toAddress: payout.toAddress ?? null,
+      }
+    } else if (payout.ok && payout.mode === 'pending') {
+      walletMode = 'pending'
+      a2uMeta = {
+        piPaymentId: payout.piPaymentId,
+        toAddress: payout.toAddress ?? null,
+      }
+    } else {
+      split = {
+        creditRefund: split.creditRefund + split.walletRefund,
+        walletRefund: 0,
+      }
+      walletMode = 'skipped'
+    }
+  } else if (split.walletRefund > 0.0001) {
+    split = {
+      creditRefund: split.creditRefund + split.walletRefund,
+      walletRefund: 0,
+    }
+  }
+
   const receiver = tx ? Number(tx.receiverAmount) : 0
+  const refundStatus =
+    walletMode === 'pending' ? TransactionStatus.PENDING : TransactionStatus.COMPLETED
 
   await prisma.$transaction(async (db) => {
     if (meta.doctorSettled === true && tx?.doctorId && receiver > 0) {
@@ -121,25 +192,33 @@ export async function refundInstantConsultPayment(
       }
     }
 
-    await db.clientProfile.update({
-      where: { id: request.clientId },
-      data: { piCreditBalance: { increment: amount } },
-    })
+    if (split.creditRefund > 0.0001) {
+      await db.clientProfile.update({
+        where: { id: request.clientId },
+        data: { piCreditBalance: { increment: split.creditRefund } },
+      })
+    }
 
     await db.transaction.create({
       data: {
         userId: request.client.userId,
         doctorId: tx?.doctorId ?? null,
         type: TransactionType.REFUND,
-        status: TransactionStatus.COMPLETED,
-        amountTotal: amount,
+        status: refundStatus,
+        amountTotal: fee,
         platformFee: 0,
-        receiverAmount: amount,
+        receiverAmount: split.walletRefund + split.creditRefund,
+        txHash: (a2uMeta.txHash as string | undefined) ?? undefined,
         notes: txNotes({
           purpose: 'INSTANT_CONSULT_REFUND',
           instantConsultId,
           originalTransactionId: tx?.id ?? null,
-          creditApplied: Number(request.creditApplied ?? 0),
+          creditApplied,
+          creditRefund: split.creditRefund,
+          walletRefund: split.walletRefund,
+          walletMode,
+          piUsername: request.client.user.piUsername,
+          ...a2uMeta,
         }),
       },
     })
@@ -152,17 +231,31 @@ export async function refundInstantConsultPayment(
     }
   })
 
+  const body = buildInstantConsultRefundMessage(split, walletMode)
+
   await prisma.notification.create({
     data: {
       userId: request.client.userId,
-      title: '💰 تم استرداد المبلغ',
-      body: `أُرجِع ${amount.toFixed(4)} π إلى رصيدك في المنصة — يمكنك استخدامه في حجز أو استشارة لاحقة`,
+      title: walletMode === 'pending' ? '💸 استرداد قيد التحويل' : '💰 تم استرداد المبلغ',
+      body,
       type: 'INSTANT_CONSULT_REFUNDED',
-      data: { instantConsultId, amount },
+      data: {
+        instantConsultId,
+        amount: fee,
+        creditRefund: split.creditRefund,
+        walletRefund: split.walletRefund,
+        walletMode,
+      },
     },
   })
 
-  return { refunded: true, amount }
+  return {
+    refunded: true,
+    amount: fee,
+    creditRefund: split.creditRefund,
+    walletRefund: split.walletRefund,
+    walletMode,
+  }
 }
 
 export async function linkInstantConsultTransaction(
@@ -173,4 +266,92 @@ export async function linkInstantConsultTransaction(
     where: { id: instantConsultId },
     data: { transactionId },
   })
+}
+
+export function mapPatientRefundRow(r: {
+  id: string
+  amountTotal: { toString(): string } | number
+  status: TransactionStatus
+  txHash: string | null
+  notes: string | null
+  createdAt: Date
+  user?: { piUsername: string | null; email: string | null }
+}) {
+  const meta = parseNotes(r.notes)
+  return {
+    id: r.id,
+    amount: Number(meta.walletRefund ?? r.amountTotal),
+    creditRefund: Number(meta.creditRefund ?? 0),
+    status: r.status,
+    piPaymentId: (meta.piPaymentId as string | null) ?? null,
+    toAddress: (meta.toAddress as string | null) ?? null,
+    txHash: r.txHash,
+    instantConsultId: (meta.instantConsultId as string | null) ?? null,
+    piUsername: (meta.piUsername as string | null) ?? r.user?.piUsername ?? null,
+    createdAt: r.createdAt.toISOString(),
+    patientContact: r.user?.piUsername ?? r.user?.email ?? undefined,
+  }
+}
+
+export async function listPendingPatientRefunds() {
+  const rows = await prisma.transaction.findMany({
+    where: {
+      type: TransactionType.REFUND,
+      status: TransactionStatus.PENDING,
+      notes: { contains: 'INSTANT_CONSULT_REFUND' },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+    include: {
+      user: { select: { piUsername: true, email: true } },
+    },
+  })
+  return rows.map(mapPatientRefundRow)
+}
+
+export async function completePatientRefundByAdmin(
+  transactionId: string,
+  txHash: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const row = await prisma.transaction.findUnique({
+    where: { id: transactionId },
+    include: { user: { select: { id: true } } },
+  })
+  if (!row || row.type !== TransactionType.REFUND || row.status !== TransactionStatus.PENDING) {
+    return { ok: false, message: 'طلب الاسترداد غير موجود أو مكتمل' }
+  }
+
+  const meta = parseNotes(row.notes)
+  const piPaymentId = meta.piPaymentId as string | undefined
+  if (!piPaymentId) return { ok: false, message: 'معرف دفع Pi غير موجود' }
+
+  const { completeA2UPayout } = await import('@/lib/pi/a2u-payout')
+  const done = await completeA2UPayout(piPaymentId, txHash)
+  if (!done.ok) return done
+
+  await prisma.transaction.update({
+    where: { id: transactionId },
+    data: {
+      status: TransactionStatus.COMPLETED,
+      txHash: txHash.trim(),
+      notes: txNotes({ ...meta, walletMode: 'completed' }),
+    },
+  })
+
+  if (row.userId) {
+    await prisma.notification.create({
+      data: {
+        userId: row.userId,
+        title: '✅ وصل الاسترداد إلى محفظة Pi',
+        body: `تم تحويل ${Number(meta.walletRefund ?? row.amountTotal).toFixed(4)} π إلى محفظتك`,
+        type: 'INSTANT_CONSULT_REFUNDED',
+        data: {
+          transactionId,
+          instantConsultId: String(meta.instantConsultId ?? ''),
+        },
+      },
+    })
+  }
+
+  return { ok: true }
 }

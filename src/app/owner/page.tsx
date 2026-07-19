@@ -65,6 +65,7 @@ export default function OwnerDashboard() {
     { href: '/owner/moderation',       icon: '🔎', label: 'مراقبة المحتوى', desc: 'تقارير المخالفات',    clr: '#f43f5e' },
     { href: '/owner/ads',               icon: '📢', label: 'الإعلانات',        desc: 'أسعار ومراجعة',      clr: '#fbbf24' },
     { href: '/owner/withdrawals',       icon: '💸', label: 'سحب الأطباء',     desc: 'تحويل π للأطباء',    clr: '#34d399' },
+    { href: '/owner/patient-refunds',   icon: '↩️', label: 'استرداد المرضى',  desc: 'A2U بعد الاستشارة',  clr: '#38bdf8' },
     { href: '/owner/premio-settings',   icon: '💎', label: 'البريميو',          desc: 'أسعار الاشتراكات',   clr: '#a78bfa' },
     { href: '/owner/give-premio',       icon: '🎁', label: 'منح مجاني',        desc: 'مكافأة مستخدم',      clr: '#34d399' },
     { href: '/owner/assign-admin',      icon: '🛡️', label: 'المديرين',         desc: 'صلاحيات الفريق',     clr: '#60a5fa' },

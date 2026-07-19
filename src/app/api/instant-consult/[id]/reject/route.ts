@@ -4,6 +4,7 @@ import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 import { refundInstantConsultPayment } from '@/lib/payment/instant-consult-escrow'
+import { buildInstantConsultRefundMessage } from '@/lib/payment/instant-consult-refund-split'
 
 export async function POST(
   _req: NextRequest,
@@ -62,7 +63,10 @@ export async function POST(
           userId: client.userId,
           title: '❌ لم يقبل الطبيب',
           body: refund.refunded
-            ? `لم يقبل الطبيب الاستشارة — أُرجِع ${refund.amount?.toFixed(4) ?? ''} π إلى رصيدك في المنصة`
+            ? `لم يقبل الطبيب الاستشارة — ${buildInstantConsultRefundMessage(
+                { creditRefund: refund.creditRefund ?? 0, walletRefund: refund.walletRefund ?? 0 },
+                refund.walletMode ?? 'skipped',
+              )}`
             : 'لم يقبل الطبيب الاستشارة الفورية — جرّب طبيباً آخر',
           type: 'INSTANT_CONSULT_REJECTED',
           data: { requestId: id },

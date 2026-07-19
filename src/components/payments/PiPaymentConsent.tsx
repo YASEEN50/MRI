@@ -3,10 +3,10 @@
 import Link from 'next/link'
 
 export const PI_REFUND_DISCLOSURE_AR =
-  'استردادات الاستشارة الفورية (عند الرفض أو انتهاء المهلة) تُضاف كرصيد π داخل المنصة — وليس مباشرة إلى محفظة Pi، ما لم يُذكر خلاف ذلك.'
+  'استردادات الاستشارة الفورية (عند الرفض أو انتهاء المهلة): الجزء المدفوع من محفظة Pi يُرجَع إلى محفظتك (A2U)؛ الجزء من رصيد المنصة يُعاد إلى رصيدك الداخلي.'
 
 export const PI_REFUND_DISCLOSURE_EN =
-  'Instant consult refunds (rejection or timeout) are credited as in-app π balance, not directly to your Pi wallet unless stated otherwise.'
+  'Instant consult refunds (rejection or timeout): Pi wallet payments return to your Pi wallet (A2U); platform credit returns to your in-app balance.'
 
 interface PiPaymentConsentProps {
   checked: boolean

@@ -59,9 +59,10 @@ export default async function TermsPage() {
 
           <h2>5. الاسترداد والرصيد الداخلي</h2>
           <p>
-            استردادات بعض الخدمات (مثل الاستشارة الفورية عند الرفض أو انتهاء المهلة) قد تُضاف
-            كـ<strong> رصيد π داخل المنصة</strong> (piCreditBalance) وليس دائماً إلى محفظة Pi
-            الخارجية. سحب مستحقات الأطباء إلى محفظة Pi يتم عبر طلب سحب وموافقة الإدارة (App-to-User).
+            استردادات الاستشارة الفورية (عند الرفض أو انتهاء المهلة): الجزء المدفوع من{' '}
+            <strong>محفظة Pi</strong> يُحوَّل إلى محفظتك عبر Pi Network (App-to-User)؛ الجزء
+            المدفوع من <strong>رصيد المنصة</strong> (piCreditBalance) يُعاد إلى رصيدك الداخلي.
+            سحب مستحقات الأطباء إلى محفظة Pi يتم عبر طلب سحب وموافقة الإدارة (App-to-User).
           </p>
 
           <h2>6. سياسات الإلغاء</h2>
@@ -107,9 +108,10 @@ export default async function TermsPage() {
 
           <h2>5. Refunds &amp; Internal Balance</h2>
           <p>
-            Some refunds (e.g. instant consult timeout/rejection) may be credited as in-app π
-            balance, not always to your external Pi wallet. Doctor payouts to Pi wallets use
-            approved App-to-User withdrawals.
+            Instant consult refunds (rejection or timeout): amounts paid from your{' '}
+            <strong>Pi wallet</strong> are returned via App-to-User transfer; amounts paid from{' '}
+            <strong>in-app balance</strong> (piCreditBalance) return to that balance. Doctor payouts
+            to Pi wallets use approved App-to-User withdrawals.
           </p>
 
           <h2>6. Cancellation</h2>
