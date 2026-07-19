@@ -14,24 +14,109 @@ export default async function TermsPage() {
       {isAr ? (
         <>
           <h2>1. قبول الشروط</h2>
-          <p>باستخدامك لمنصة MRI، فإنك توافق على الالتزام بهذه الشروط وسياسة الخصوصية.</p>
+          <p>
+            باستخدامك لمنصة MRI، فإنك توافق على الالتزام بهذه الشروط وسياسة الخصوصية. التسجيل
+            وتسجيل الدخول يتم عبر Pi Network (Pi Browser).
+          </p>
+
           <h2>2. استخدام المنصة</h2>
-          <p>المنصة مخصصة للأغراض الطبية والاستشارية المشروعة. يُمنع نشر محتوى مضلل أو انتحال الهوية.</p>
+          <p>
+            المنصة مخصصة للأغراض الطبية والاستشارية المشروعة: حجز المواعيد، الاستشارات الفورية،
+            والتواصل بين المرضى والأطباء والمنشآت. يُمنع نشر محتوى مضلل، انتحال الهوية، أو أي
+            استخدام يخالف قوانين Pi Network أو القوانين المحلية.
+          </p>
+
           <h2>3. حسابات المستخدمين</h2>
-          <p>أنت مسؤول عن سرية بيانات الدخول وعن جميع الأنشطة التي تتم عبر حسابك.</p>
-          <h2>4. المواعيد والمدفوعات</h2>
-          <p>سياسات الإلغاء والدفع تخضع لإعدادات الطبيب أو المنشأة المعنية.</p>
-          <h2>5. التعديلات</h2>
-          <p>قد نحدّث هذه الشروط periodically. استمرارك في الاستخدام يعني موافقتك على النسخة المحدّثة.</p>
+          <p>
+            أنت مسؤول عن نشاط حسابك. قد يُجمّد المالك أو يُلغى توثيق الحساب عند مخالفة الشروط أو
+            تأكيد شكوى.
+          </p>
+
+          <h2>4. المدفوعات عبر Pi Network</h2>
+          <ul>
+            <li>
+              جميع المدفوعات داخل MRI (مواعيد، استشارات فورية، اشتراك البريميو للأطباء، الإعلانات)
+              تتم حصرياً بعملة <strong>Pi (π)</strong> عبر Pi Browser ووفق آلية Pi App Platform
+              (موافقة الخادم ثم إتمام على البلوك تشين).
+            </li>
+            <li>
+              <strong>المواعيد والاستشارات:</strong> رسوم خدمة طبية — قد تُخصم عمولة منصة (5%) من
+              مستحقات الطبيب.
+            </li>
+            <li>
+              <strong>البريميو:</strong> اشتراك اختياري لتمييز ملف الطبيب/المنشأة — ليس علاجاً
+              مباشراً.
+            </li>
+            <li>
+              <strong>الإعلانات:</strong> رسوم نشر إعلان على المنصة — تخضع لمراجعة الإدارة قبل
+              الظهور.
+            </li>
+            <li>
+              لا تُسلَّم الخدمة المدفوعة إلا بعد تأكيد الدفع من الخادم (complete). إلغاء الدفع من
+              محفظة Pi قبل الإتمام يُلغي العملية.
+            </li>
+          </ul>
+
+          <h2>5. الاسترداد والرصيد الداخلي</h2>
+          <p>
+            استردادات بعض الخدمات (مثل الاستشارة الفورية عند الرفض أو انتهاء المهلة) قد تُضاف
+            كـ<strong> رصيد π داخل المنصة</strong> (piCreditBalance) وليس دائماً إلى محفظة Pi
+            الخارجية. سحب مستحقات الأطباء إلى محفظة Pi يتم عبر طلب سحب وموافقة الإدارة (App-to-User).
+          </p>
+
+          <h2>6. سياسات الإلغاء</h2>
+          <p>
+            سياسات الإلغاء والدفع (مقدم، كامل، أو بعد الخدمة) تخضع لإعدادات الطبيب أو المنشأة
+            المعنية ضمن ما تتيحه المنصة.
+          </p>
+
+          <h2>7. التعديلات</h2>
+          <p>قد نحدّث هذه الشروط. استمرارك في الاستخدام يعني موافقتك على النسخة المحدّثة.</p>
         </>
       ) : (
         <>
           <h2>1. Acceptance</h2>
-          <p>By using MRI, you agree to these terms and our privacy policy.</p>
+          <p>
+            By using MRI you agree to these terms and our privacy policy. Sign-in and registration
+            are via Pi Network (Pi Browser).
+          </p>
+
           <h2>2. Platform Use</h2>
-          <p>The platform is for legitimate medical and consultation purposes. Misleading content or impersonation is prohibited.</p>
-          <h2>3. User Accounts</h2>
-          <p>You are responsible for keeping your credentials secure and for all activity under your account.</p>
+          <p>
+            MRI is for legitimate medical and consultation purposes. Misleading content,
+            impersonation, or uses that violate Pi Network policies are prohibited.
+          </p>
+
+          <h2>3. Accounts</h2>
+          <p>
+            You are responsible for activity on your account. The owner may suspend or revoke
+            verification for violations or confirmed reports.
+          </p>
+
+          <h2>4. Pi Network Payments</h2>
+          <ul>
+            <li>
+              All in-app payments (appointments, instant consults, Premio subscriptions, ads) use
+              <strong> Pi (π)</strong> only, through Pi Browser with server approve/complete.
+            </li>
+            <li>Appointments and consults are medical service fees; a platform fee may apply.</li>
+            <li>Premio is optional doctor/facility visibility — not direct treatment.</li>
+            <li>Paid ads require admin review before publication.</li>
+            <li>Paid services are delivered only after server-confirmed completion.</li>
+          </ul>
+
+          <h2>5. Refunds &amp; Internal Balance</h2>
+          <p>
+            Some refunds (e.g. instant consult timeout/rejection) may be credited as in-app π
+            balance, not always to your external Pi wallet. Doctor payouts to Pi wallets use
+            approved App-to-User withdrawals.
+          </p>
+
+          <h2>6. Cancellation</h2>
+          <p>Per-doctor or facility payment policies apply where supported.</p>
+
+          <h2>7. Changes</h2>
+          <p>We may update these terms. Continued use means acceptance.</p>
         </>
       )}
     </LegalPageLayout>
