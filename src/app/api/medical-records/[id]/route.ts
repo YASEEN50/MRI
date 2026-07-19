@@ -7,6 +7,7 @@ import { Role } from '@prisma/client'
 import { z } from 'zod'
 import { canAccessMedicalRecord } from '@/lib/medical-records/access'
 import { deleteMedicalRecordFile } from '@/lib/medical-records/storage'
+import { canActAsPatient } from '@/lib/client/patient-access'
 import { writeMedicalRecordAudit } from '@/lib/medical-records/audit'
 
 const UpdateSchema = z.object({
@@ -34,7 +35,7 @@ export async function PATCH(
     if (!record) return ok({ error: true, message: 'السجل غير موجود' })
 
     const allowed = await canAccessMedicalRecord(auth.context, record)
-    if (!allowed || auth.context.role !== Role.CLIENT) {
+    if (!allowed || !canActAsPatient(auth.context.role)) {
       return ok({ error: true, message: 'غير مصرح' })
     }
 
@@ -96,7 +97,7 @@ export async function DELETE(
     if (!record) return ok({ error: true, message: 'السجل غير موجود' })
 
     const allowed = await canAccessMedicalRecord(auth.context, record)
-    if (!allowed || auth.context.role !== Role.CLIENT) {
+    if (!allowed || !canActAsPatient(auth.context.role)) {
       return ok({ error: true, message: 'غير مصرح' })
     }
 

@@ -8,6 +8,7 @@ import {
   getInstantConsultVideoRoomName,
 } from '@/lib/instant-consult/video'
 import { getJitsiServerUrl } from '@/lib/appointments/online-video'
+import { canActAsPatient } from '@/lib/client/patient-access'
 import { getChatPath } from '@/lib/chat/paths'
 
 export async function GET(
@@ -33,7 +34,7 @@ export async function GET(
     }
 
     const isClient =
-      auth.context.role === Role.CLIENT &&
+      canActAsPatient(auth.context.role) &&
       consult.client.userId === auth.context.userId
     const isDoctor =
       auth.context.role === Role.DOCTOR &&

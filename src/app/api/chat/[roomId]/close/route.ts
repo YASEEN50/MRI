@@ -1,4 +1,5 @@
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { PATIENT_CAPABLE_ROLES } from '@/lib/client/patient-access'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { closeChatRoom } from '@/lib/chat/close-room'
 import { Role } from '@prisma/client'
@@ -8,7 +9,7 @@ export async function POST(
   { params }: { params: Promise<{ roomId: string }> },
 ) {
   try {
-    const auth = await requireAuth({ roles: [Role.CLIENT, Role.DOCTOR] })
+    const auth = await requireAuth({ roles: [...PATIENT_CAPABLE_ROLES, Role.DOCTOR] })
     if (!auth.success) return fromAppError(auth.error)
 
     const { roomId } = await params

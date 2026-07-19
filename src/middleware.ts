@@ -4,6 +4,8 @@ import { getToken } from 'next-auth/jwt'
 import { NextResponse } from 'next/server'
 import type { NextFetchEvent, NextRequest } from 'next/server'
 
+const PATIENT_CAPABLE_ROLES = new Set(['CLIENT', 'OWNER', 'ADMIN'])
+
 const Role = {
   OWNER: 'OWNER',
   ADMIN: 'ADMIN',
@@ -92,7 +94,8 @@ const authMiddleware = withAuth(
     }
 
     if (pathname.startsWith('/dashboard') && role === Role.OWNER) {
-      if (!pathname.startsWith('/dashboard/admin')) {
+      const ownerPatientDash = pathname.startsWith('/dashboard/client')
+      if (!pathname.startsWith('/dashboard/admin') && !ownerPatientDash) {
         return NextResponse.redirect(new URL('/owner', req.url))
       }
     }
@@ -139,7 +142,7 @@ const authMiddleware = withAuth(
       }
     }
 
-    if (pathname.startsWith('/dashboard/client') && role !== Role.CLIENT) {
+    if (pathname.startsWith('/dashboard/client') && !PATIENT_CAPABLE_ROLES.has(role as string)) {
       return NextResponse.redirect(new URL('/unauthorized', req.url))
     }
 

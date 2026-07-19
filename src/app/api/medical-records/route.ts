@@ -8,6 +8,7 @@ import { Role } from '@prisma/client'
 import { z } from 'zod'
 import { validateFileBuffer } from '@/lib/verification/file-validator'
 import type { AllowedMimeType } from '@/core/interfaces/services/file-storage.interface'
+import { canActAsPatient, getClientProfileId, ensureClientProfile } from '@/lib/client/patient-access'
 import { doctorSharedRecordsWhere } from '@/lib/medical-records/access'
 import { saveMedicalRecordFile, medicalRecordFileUrl, deleteMedicalRecordFile } from '@/lib/medical-records/storage'
 import { writeMedicalRecordAudit } from '@/lib/medical-records/audit'
@@ -40,16 +41,20 @@ export async function GET(req: NextRequest) {
 
     let where: Record<string, unknown> = { deletedAt: null }
 
-    if (role === Role.CLIENT) {
-      const profile = await prisma.clientProfile.findUnique({ where: { userId }, select: { id: true } })
-      if (!profile) return ok([])
-      where.clientId = profile.id
+    const scopeAll = req.nextUrl.searchParams.get('scope') === 'all'
+
+    if (canActAsPatient(role) && (role === Role.CLIENT || !scopeAll)) {
+      const profileId = await getClientProfileId(userId)
+      if (!profileId) return ok([])
+      where.clientId = profileId
     } else if (role === Role.DOCTOR) {
       const doctorWhere = await doctorSharedRecordsWhere(userId)
       if (!doctorWhere) return ok([])
       where = { ...where, ...doctorWhere }
+    } else if ((role === Role.ADMIN || role === Role.OWNER) && scopeAll) {
+      // Admin/owner platform view — full list with audit per record below
     } else if (role === Role.ADMIN || role === Role.OWNER) {
-      // Admin/owner — full list with audit per record below
+      return ok([])
     } else {
       return ok([])
     }
@@ -115,7 +120,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.CLIENT, Role.DOCTOR] })
+    const auth = await requireAuth({ roles: [Role.CLIENT, Role.OWNER, Role.ADMIN, Role.DOCTOR] })
     if (!auth.success) return fromAppError(auth.error)
 
     const contentType = req.headers.get('content-type') ?? ''
@@ -165,9 +170,8 @@ export async function POST(req: NextRequest) {
     let clientId: string | null = null
     let doctorId: string | null = null
 
-    if (role === Role.CLIENT) {
-      const profile = await prisma.clientProfile.findUnique({ where: { userId }, select: { id: true } })
-      if (!profile) return ok({ error: true, message: 'ملف المريض غير موجود' })
+    if (canActAsPatient(role)) {
+      const profile = await ensureClientProfile(userId)
       clientId = profile.id
     } else if (role === Role.DOCTOR) {
       const doctor = await prisma.doctorProfile.findUnique({ where: { userId }, select: { id: true } })

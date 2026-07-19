@@ -1,6 +1,7 @@
 // src/app/api/payment/pi/approve/route.ts
 import { NextRequest } from 'next/server'
-import { Role, InstantConsultStatus, AdPlan, PaymentPolicy, AppointmentStatus } from '@prisma/client'
+import { Role, InstantConsultStatus, AdPlan, PaymentPolicy, AppointmentStatus, PaidAdStatus } from '@prisma/client'
+import { canActAsPatient } from '@/lib/client/patient-access'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
@@ -9,7 +10,6 @@ import { splitDoctorPayment, splitPremioPayment } from '@/lib/payment/platform-f
 import { getPiNetworkApiKey, PI_PAYMENTS_NOT_CONFIGURED_MSG } from '@/lib/pi/pi-api-key'
 import { getAdSettings } from '@/lib/ads/settings'
 import { adPlanPrice } from '@/lib/ads/pricing'
-import { PaidAdStatus } from '@prisma/client'
 
 import { z } from 'zod'
 
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (purpose === 'APPOINTMENT') {
-      if (auth.context.role !== Role.CLIENT) {
+      if (!canActAsPatient(auth.context.role)) {
         return ok({ error: true, message: 'غير مصرح' })
       }
       if (!appointmentId || !paymentType) {
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (purpose === 'INSTANT_CONSULT') {
-      if (auth.context.role !== Role.CLIENT) {
+      if (!canActAsPatient(auth.context.role)) {
         return ok({ error: true, message: 'غير مصرح' })
       }
       if (!instantConsultId) {

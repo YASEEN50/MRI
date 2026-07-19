@@ -3,6 +3,7 @@ import { Role } from '@prisma/client'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
+import { canActAsPatient, isAppointmentOwner } from '@/lib/client/patient-access'
 import {
   canAccessVideoCall,
   getJitsiEmbedUrl,
@@ -16,7 +17,7 @@ async function canViewAppointment(
   role: Role,
   userId: string,
 ): Promise<boolean> {
-  if (role === Role.CLIENT) return appointment.clientId === userId
+  if (canActAsPatient(role) && isAppointmentOwner(userId, appointment.clientId)) return true
   if (role === Role.DOCTOR && appointment.doctorId) {
     const doctor = await prisma.doctorProfile.findUnique({
       where: { userId },

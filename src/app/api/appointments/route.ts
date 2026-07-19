@@ -1,10 +1,11 @@
 // src/app/api/appointments/route.ts
 import { NextRequest } from 'next/server'
 import { Role } from '@prisma/client'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requireAuth, requirePatientAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, created, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { canActAsPatient } from '@/lib/client/patient-access'
 import { createRemindersForAppointment } from '@/lib/cron/reminders.service'
 import { doctorHasActivePremioByProfileId } from '@/lib/premio/active-premio'
 import { appointmentVideoFields } from '@/lib/appointments/online-video'
@@ -40,7 +41,10 @@ export async function GET(req: NextRequest) {
     const skip   = (page - 1) * limit
 
     let where: any = { deletedAt: null }
-    if (role === Role.CLIENT)   where.clientId  = userId
+    const scopeAll = req.nextUrl.searchParams.get('scope') === 'all'
+    if (canActAsPatient(role) && (role === Role.CLIENT || !scopeAll)) {
+      where.clientId = userId
+    }
     if (role === Role.DOCTOR) {
       const doctor = await prisma.doctorProfile.findUnique({ where: { userId }, select: { id: true } })
       if (doctor) where.doctorId = doctor.id
@@ -132,7 +136,7 @@ export async function GET(req: NextRequest) {
 // POST — إنشاء موعد جديد
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.CLIENT] })
+    const auth = await requirePatientAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body   = await req.json()

@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { Role, ApprovalStatus } from '@prisma/client'
 import { UnauthorizedError } from '@/core/errors'
+import { PATIENT_CAPABLE_ROLES } from '@/lib/client/patient-access'
 
 export interface GuardOptions {
   roles?: Role[]
@@ -43,4 +44,9 @@ export async function requireAuth(
     success: true,
     context: { userId, role, approvalStatus, piUid },
   }
+}
+
+/** Owner/admin may use patient flows without changing their primary role. */
+export async function requirePatientAuth(): Promise<AuthSuccess | AuthFailure> {
+  return requireAuth({ roles: PATIENT_CAPABLE_ROLES })
 }

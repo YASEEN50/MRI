@@ -82,7 +82,7 @@ export default function ConsultNowPage() {
 
   useEffect(() => {
     if (status !== 'authenticated') return
-    fetch('/api/profile')
+    fetch('/api/profile?as=patient')
       .then((r) => r.json())
       .then((d) => {
         if (d.data?.piCreditBalance != null) setPiCredit(Number(d.data.piCreditBalance))
@@ -109,7 +109,7 @@ export default function ConsultNowPage() {
         void loadPendingReviews()
       } else if (req?.status === 'REJECTED' || req?.status === 'EXPIRED') {
         setPhase('failed')
-        fetch('/api/profile')
+        fetch('/api/profile?as=patient')
           .then((r) => r.json())
           .then((d) => {
             if (d.data?.piCreditBalance != null) setPiCredit(Number(d.data.piCreditBalance))

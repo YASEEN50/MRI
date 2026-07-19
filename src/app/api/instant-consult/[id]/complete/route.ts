@@ -3,6 +3,7 @@ import { InstantConsultStatus, Role } from '@prisma/client'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
+import { canActAsPatient, getClientProfileId } from '@/lib/client/patient-access'
 import { notifyInstantConsultReviewRequested } from '@/lib/reviews/notifications'
 
 export async function POST(
@@ -41,17 +42,14 @@ export async function POST(
       return ok({ completed: true })
     }
 
-    if (auth.context.role === Role.CLIENT) {
-      const profile = await prisma.clientProfile.findUnique({
-        where: { userId: auth.context.userId },
-        select: { id: true },
-      })
-      if (!profile) return ok({ error: true, message: 'غير مصرح' })
+    if (canActAsPatient(auth.context.role)) {
+      const profileId = await getClientProfileId(auth.context.userId)
+      if (!profileId) return ok({ error: true, message: 'غير مصرح' })
 
       const request = await prisma.instantConsultRequest.findFirst({
         where: {
           id,
-          clientId: profile.id,
+          clientId: profileId,
           status: { in: [InstantConsultStatus.AWAITING_PAYMENT, InstantConsultStatus.PENDING] },
         },
       })

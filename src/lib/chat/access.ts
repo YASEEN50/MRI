@@ -1,5 +1,6 @@
 import { Role } from '@prisma/client'
 import { prisma, db } from '@/lib/prisma'
+import { canActAsPatient, getClientProfileId } from '@/lib/client/patient-access'
 
 export async function getChatRoomForUser(
   roomId: string,
@@ -9,12 +10,9 @@ export async function getChatRoomForUser(
   const room = await db.chatRoom.findUnique({ where: { id: roomId } })
   if (!room) return null
 
-  if (role === Role.CLIENT) {
-    const profile = await prisma.clientProfile.findUnique({
-      where: { userId },
-      select: { id: true },
-    })
-    if (!profile || room.clientId !== profile.id) return null
+  if (canActAsPatient(role)) {
+    const profileId = await getClientProfileId(userId)
+    if (!profileId || room.clientId !== profileId) return null
     return room
   }
 

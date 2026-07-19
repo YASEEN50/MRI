@@ -65,6 +65,9 @@ function getRoleNavLinks(role: Role | undefined, locale: 'ar' | 'en', t: (k: str
     return [
       { href: '/',                         label: t('nav.home') },
       { href: getDashboardLink(role),     label: role === Role.OWNER ? (locale === 'ar' ? 'لوحة المالك' : 'Owner') : (locale === 'ar' ? 'لوحة التحكم' : 'Dashboard') },
+      { href: '/dashboard/client/appointments', label: locale === 'ar' ? '🩺 مواعيدي' : 'My care' },
+      { href: '/consult-now',             label: locale === 'ar' ? '⚡ استشارة فورية' : 'Instant consult' },
+      { href: '/doctors',                 label: t('nav.doctors') },
       { href: '/dashboard/admin/pending', label: locale === 'ar' ? 'الطلبات المعلقة' : 'Pending' },
       { href: '/admin/verification-v2',   label: 'التحقق v2' },
       { href: '/publications',            label: locale === 'ar' ? 'المنشورات' : 'Publications' },
