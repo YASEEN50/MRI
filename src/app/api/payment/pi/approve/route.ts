@@ -1,6 +1,6 @@
 // src/app/api/payment/pi/approve/route.ts
 import { NextRequest } from 'next/server'
-import { Role, InstantConsultStatus, AdPlan } from '@prisma/client'
+import { Role, InstantConsultStatus, AdPlan, PaymentPolicy, AppointmentStatus } from '@prisma/client'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
@@ -90,10 +90,20 @@ export async function POST(req: NextRequest) {
 
       const appointment = await prisma.appointment.findFirst({
         where: { id: appointmentId, clientId: auth.context.userId, deletedAt: null },
-        include: { doctor: { select: { id: true, depositPercentage: true, consultationFee: true } } },
+        include: { doctor: { select: { id: true, depositPercentage: true, consultationFee: true, paymentPolicy: true } } },
       })
       if (!appointment) return ok({ error: true, message: 'الموعد غير موجود' })
       if (appointment.isPaid) return ok({ error: true, message: 'تم دفع هذا الموعد مسبقاً' })
+
+      const doctorPolicy = appointment.doctor?.paymentPolicy ?? PaymentPolicy.PAY_ON_SERVICE
+      if (
+        doctorPolicy === PaymentPolicy.PAY_ON_SERVICE &&
+        paymentType === 'FULL' &&
+        !appointment.isDepositPaid &&
+        appointment.status !== AppointmentStatus.COMPLETED
+      ) {
+        return ok({ error: true, message: 'سياسة «دفع بعد الخدمة» — الدفع متاح بعد إتمام الموعد' })
+      }
 
       const fee = Number(appointment.fee ?? appointment.doctor?.consultationFee ?? 0)
       if (fee <= 0) return ok({ error: true, message: 'لم يتم تحديد رسوم الموعد' })

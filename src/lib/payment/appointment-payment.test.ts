@@ -21,6 +21,16 @@ describe('resolveAppointmentPayment', () => {
     ).toEqual({ paymentType: 'FULL', amount: 50, requiresPayment: false })
   })
 
+  it('PAY_ON_SERVICE requires payment after service completed', () => {
+    expect(
+      resolveAppointmentPayment({
+        fee: 50,
+        paymentPolicy: 'PAY_ON_SERVICE',
+        serviceCompleted: true,
+      }),
+    ).toEqual({ paymentType: 'FULL', amount: 50, requiresPayment: true })
+  })
+
   it('PAY_BEFORE_BOOKING requires full fee', () => {
     expect(
       resolveAppointmentPayment({

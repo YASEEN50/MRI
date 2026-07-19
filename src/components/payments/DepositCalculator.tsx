@@ -15,7 +15,7 @@ export default function DepositCalculator({ fee, paymentPolicy, depositPercentag
     <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-4" dir="rtl">
       <p className="text-slate-400 text-xs mb-2">💳 سياسة الدفع</p>
       <div className="flex justify-between items-center">
-        <span className="text-slate-300 text-sm">دفع بعد الخدمة</span>
+        <span className="text-slate-300 text-sm">دفع بعد إتمام الموعد</span>
         <span className="text-white font-semibold">{fee} Pi</span>
       </div>
     </div>

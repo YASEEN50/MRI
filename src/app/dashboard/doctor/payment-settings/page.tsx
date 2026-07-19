@@ -139,6 +139,14 @@ export default function DoctorPaymentSettingsPage() {
           </div>
         )}
 
+        {selectedPolicy === 'PAY_ON_SERVICE' && (
+          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4 mb-6">
+            <p className="text-emerald-400 text-sm">
+              🤝 المريض يدفع رسوم الموعد ({consultationFee || '—'} π) بعد إتمام الزيارة — لا حاجة لمهلة دفع مسبقة
+            </p>
+          </div>
+        )}
+
         {selectedPolicy !== 'PAY_ON_SERVICE' && (
           <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5 mb-6">
             <h3 className="text-white font-semibold mb-4">مهلة الدفع قبل الموعد</h3>

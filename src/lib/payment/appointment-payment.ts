@@ -10,6 +10,8 @@ export interface AppointmentPaymentInput {
   isDepositPaid?: boolean
   depositAmount?: number | null
   isPaid?: boolean
+  /** When true, PAY_ON_SERVICE allows collecting full fee (after appointment completed). */
+  serviceCompleted?: boolean
 }
 
 export function resolveAppointmentPayment(input: AppointmentPaymentInput): {
@@ -24,6 +26,7 @@ export function resolveAppointmentPayment(input: AppointmentPaymentInput): {
     isDepositPaid = false,
     depositAmount,
     isPaid = false,
+    serviceCompleted = false,
   } = input
 
   if (isPaid || fee <= 0) {
@@ -31,7 +34,10 @@ export function resolveAppointmentPayment(input: AppointmentPaymentInput): {
   }
 
   if (paymentPolicy === 'PAY_ON_SERVICE') {
-    return { paymentType: 'FULL', amount: fee, requiresPayment: false }
+    if (!serviceCompleted) {
+      return { paymentType: 'FULL', amount: fee, requiresPayment: false }
+    }
+    return { paymentType: 'FULL', amount: fee, requiresPayment: true }
   }
 
   if (paymentPolicy === 'DEPOSIT_AND_PAY_LATER') {
