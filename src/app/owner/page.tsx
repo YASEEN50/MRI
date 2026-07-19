@@ -61,6 +61,7 @@ export default function OwnerDashboard() {
 
   const quickActions = [
     { href: '/admin/publications',      icon: '📝', label: 'مراجعة المنشورات', desc: pendingPublications > 0 ? `${pendingPublications} بانتظار المراجعة` : 'مقالات الأطباء', clr: '#fb923c' },
+    { href: '/owner/account-actions', icon: '⚖️', label: 'إدارة الحسابات', desc: 'تجميد / إلغاء توثيق', clr: '#ef4444' },
     { href: '/owner/moderation',       icon: '🔎', label: 'مراقبة المحتوى', desc: 'تقارير المخالفات',    clr: '#f43f5e' },
     { href: '/owner/ads',               icon: '📢', label: 'الإعلانات',        desc: 'أسعار ومراجعة',      clr: '#fbbf24' },
     { href: '/owner/withdrawals',       icon: '💸', label: 'سحب الأطباء',     desc: 'تحويل π للأطباء',    clr: '#34d399' },
