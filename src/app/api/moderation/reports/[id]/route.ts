@@ -5,11 +5,18 @@ import { prisma, db } from '@/lib/prisma'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { Role, ActivityType } from '@prisma/client'
 import { z } from 'zod'
+import { resolveReportTargetUserId } from '@/lib/moderation/resolve-report-user'
+import {
+  revokeVerificationForUser,
+  suspendUserAccount,
+} from '@/lib/owner/account-enforcement'
 
 const ActionSchema = z.object({
   status:      z.enum(['REVIEWED','ACTION_TAKEN','DISMISSED']),
   reviewNotes: z.string().max(1000).optional(),
   actionTaken: z.string().max(500).optional(),
+  freezeUser:  z.boolean().optional(),
+  revokeVerification: z.boolean().optional(),
 })
 
 // PATCH — مراجعة التقرير واتخاذ إجراء
@@ -29,9 +36,22 @@ export async function PATCH(
     const report = await db.contentReport.findUnique({ where: { id } })
     if (!report) return ok({ error: true, message: 'التقرير غير موجود' })
 
-    // إذا action_taken — نخفي المحتوى
+    // إذا action_taken — نخفي المحتوى + إجراءات اختيارية على الحساب
     if (parsed.data.status === 'ACTION_TAKEN') {
       await hideContent(report.contentType, report.contentId)
+
+      const targetUserId = await resolveReportTargetUserId(report.contentType, report.contentId)
+      const enforcementReason =
+        parsed.data.actionTaken ||
+        parsed.data.reviewNotes ||
+        'إجراء تأديبي بسبب تقرير مخالفة'
+
+      if (targetUserId && parsed.data.freezeUser) {
+        await suspendUserAccount(targetUserId, auth.context.userId, enforcementReason)
+      }
+      if (targetUserId && parsed.data.revokeVerification) {
+        await revokeVerificationForUser(targetUserId, auth.context.userId, enforcementReason)
+      }
     }
 
     await db.contentReport.update({

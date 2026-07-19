@@ -31,7 +31,13 @@ export default function ModerationPage() {
   const [loading,  setLoading]  = useState(true)
   const [filter,   setFilter]   = useState('PENDING')
   const [selected, setSelected] = useState<any | null>(null)
-  const [action,   setAction]   = useState({ status: 'REVIEWED', notes: '', actionTaken: '' })
+  const [action,   setAction]   = useState({
+    status: 'REVIEWED',
+    reviewNotes: '',
+    actionTaken: '',
+    freezeUser: false,
+    revokeVerification: false,
+  })
   const [saving,   setSaving]   = useState(false)
   const [stats,    setStats]    = useState({ pending: 0, reviewed: 0, action_taken: 0 })
 
@@ -133,7 +139,13 @@ export default function ModerationPage() {
               </div>
             ) : reports.map(r => (
               <div key={r.id}
-                onClick={() => { setSelected(r); setAction({ status: 'REVIEWED', notes: '', actionTaken: '' }) }}
+                onClick={() => { setSelected(r); setAction({
+                  status: 'REVIEWED',
+                  reviewNotes: '',
+                  actionTaken: '',
+                  freezeUser: false,
+                  revokeVerification: false,
+                }) }}
                 className={`rounded-2xl p-4 cursor-pointer transition-all
                   ${selected?.id === r.id ? 'ring-2 ring-emerald-500/40' : 'hover:bg-white/5'}`}
                 style={{background: selected?.id === r.id ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)', border:`1px solid ${selected?.id === r.id ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.07)'}`}}>
@@ -207,19 +219,39 @@ export default function ModerationPage() {
                   </div>
 
                   {action.status === 'ACTION_TAKEN' && (
-                    <div>
-                      <label className="text-slate-300 text-sm mb-2 block">الإجراء المتخذ</label>
-                      <input value={action.actionTaken}
-                        onChange={e => setAction(p => ({...p, actionTaken: e.target.value}))}
-                        placeholder="مثال: تم إخفاء المحتوى، تم تحذير المستخدم..."
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-red-500/50" />
-                    </div>
+                    <>
+                      <div>
+                        <label className="text-slate-300 text-sm mb-2 block">الإجراء المتخذ</label>
+                        <input value={action.actionTaken}
+                          onChange={e => setAction(p => ({...p, actionTaken: e.target.value}))}
+                          placeholder="مثال: تم إخفاء المحتوى، تم تحذير المستخدم..."
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-red-500/50" />
+                      </div>
+                      <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={action.freezeUser}
+                          onChange={e => setAction(p => ({ ...p, freezeUser: e.target.checked }))}
+                          className="rounded"
+                        />
+                        ⛔ تجميد حساب صاحب المحتوى
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={action.revokeVerification}
+                          onChange={e => setAction(p => ({ ...p, revokeVerification: e.target.checked }))}
+                          className="rounded"
+                        />
+                        🚫 إلغاء التوثيق (طبيب/منشأة موثّقة)
+                      </label>
+                    </>
                   )}
 
                   <div>
                     <label className="text-slate-300 text-sm mb-2 block">ملاحظات المراجعة</label>
-                    <textarea value={action.notes}
-                      onChange={e => setAction(p => ({...p, notes: e.target.value}))}
+                    <textarea value={action.reviewNotes}
+                      onChange={e => setAction(p => ({...p, reviewNotes: e.target.value}))}
                       rows={3} placeholder="ملاحظات اختيارية..."
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-emerald-500/50 resize-none" />
                   </div>
