@@ -41,10 +41,5 @@ export function notificationActionPath(type: string, data: unknown): string | nu
     return '/dashboard/doctor/referrals'
   }
 
-  if (type === 'SUPPORT_TICKET_NEW' || type === 'SUPPORT_TICKET_REPLY' || type === 'SUPPORT_TICKET_USER_REPLY') {
-    if (typeof d.ticketId === 'string') return `/dashboard/support/${d.ticketId}`
-    return '/dashboard/support'
-  }
-
   return null
 }

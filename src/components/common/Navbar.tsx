@@ -37,7 +37,6 @@ function getRoleNavLinks(role: Role | undefined, locale: 'ar' | 'en', t: (k: str
       { href: '/facilities',   label: t('nav.facilities') },
       { href: '/consult-now', label: locale === 'ar' ? '⚡ استشارة فورية' : 'Instant consult' },
       { href: '/appointments', label: locale === 'ar' ? 'مواعيدي' : 'My Appointments' },
-      { href: '/dashboard/support', label: locale === 'ar' ? '🎫 الدعم' : 'Support' },
     ]
   }
   if (role === Role.DOCTOR) {
@@ -46,7 +45,6 @@ function getRoleNavLinks(role: Role | undefined, locale: 'ar' | 'en', t: (k: str
       { href: '/dashboard/doctor/schedule', label: locale === 'ar' ? 'جدولي' : 'Schedule' },
       { href: '/dashboard/doctor/instant-consult', label: locale === 'ar' ? '⚡ فوري' : 'Instant' },
       { href: '/dashboard/doctor/chat',     label: locale === 'ar' ? 'المحادثات' : 'Chat' },
-      { href: '/dashboard/support',         label: locale === 'ar' ? '🎫 الدعم' : 'Support' },
       { href: '/doctors',                   label: t('nav.doctors') },
     ]
   }
