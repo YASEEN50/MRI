@@ -363,28 +363,61 @@ window.PiAuth = (function () {
     return runOnLoad().then(function (auth) { return !!auth })
   }
 
+  function clearPiSessionStorage() {
+    try {
+      sessionStorage.removeItem(SKIP_KEY)
+      sessionStorage.removeItem(PENDING_INCOMPLETE_KEY)
+      sessionStorage.removeItem(LOOP_KEY)
+    } catch (e) {}
+  }
+
   function signOut(redirectTo) {
     markSkipAuto()
-    var target = redirectTo || '/'
-    return fetchCsrf()
-      .then(function (csrf) {
-        return fetch('/api/auth/signout', {
+    clearPiSessionStorage()
+    var target = redirectTo || '/pi.html?logged_out=1'
+    if (target.indexOf('logged_out') === -1) {
+      target += (target.indexOf('?') === -1 ? '?' : '&') + 'logged_out=1'
+    }
+
+    function finish(url) {
+      window.location.replace(url || target)
+    }
+
+    return requestCookieAccess()
+      .then(function () {
+        return fetch('/api/auth/pi-logout', {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            csrfToken: csrf.csrfToken,
-            callbackUrl: target,
-            json: 'true',
-          }).toString(),
+          cache: 'no-store',
         })
       })
       .then(function (r) { return r.json() })
       .then(function (data) {
-        window.location.href = (data && data.url) ? data.url : target
+        var inner = (data && data.data) || data
+        finish((inner && inner.redirect) || target)
       })
       .catch(function () {
-        window.location.href = target
+        return requestCookieAccess()
+          .then(fetchCsrf)
+          .then(function (csrf) {
+            return fetch('/api/auth/signout', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                csrfToken: csrf.csrfToken,
+                callbackUrl: target,
+                json: 'true',
+              }).toString(),
+            })
+          })
+          .then(function (r) { return r.json() })
+          .then(function (data) {
+            finish((data && data.url) || target)
+          })
+          .catch(function () {
+            finish(target)
+          })
       })
   }
 
