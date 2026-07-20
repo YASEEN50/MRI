@@ -1,13 +1,10 @@
 // src/app/api/payment/pi/complete/route.ts
 import { NextRequest } from 'next/server'
-import { PremioType } from '@prisma/client'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 import { piPaymentService } from '@/infrastructure/pi-network/pi-payment.service'
-import { fulfillPremioPurchase, fulfillAppointmentPayment, fulfillInstantConsultPayment } from '@/lib/payment/fulfill'
-import { fulfillPaidAdPayment } from '@/lib/payment/fulfill-paid-ad'
-import { settleDoctorPayment } from '@/lib/payment/platform-fee'
+import { finalizeCompletedPiPayment } from '@/lib/payment/complete-payment'
 import { getPiNetworkApiKey, PI_PAYMENTS_NOT_CONFIGURED_MSG } from '@/lib/pi/pi-api-key'
 
 import { z } from 'zod'
@@ -50,95 +47,14 @@ export async function POST(req: NextRequest) {
 
     await piPaymentService.completePayment(paymentId, txid)
 
-    const meta = JSON.parse(transaction.notes ?? '{}') as {
-      purpose?: string
-      planType?: PremioType
-      appointmentId?: string
-      paymentType?: 'FULL' | 'DEPOSIT'
-      transactionType?: 'APPOINTMENT_FEE' | 'DEPOSIT' | 'FINAL_PAYMENT' | 'INSTANT_CONSULT'
-      instantConsultId?: string
-      adId?: string
-    }
-
-    await prisma.transaction.update({
-      where: { id: transaction.id },
-      data:  { status: 'COMPLETED', txHash: txid },
+    const result = await finalizeCompletedPiPayment({
+      userId: auth.context.userId,
+      transaction,
+      txHash: txid,
+      piPaymentId: paymentId,
     })
 
-    // تسوية مستحقات الطبيب: 95% تلقائياً لرصيده، 5% عمولة المنصة
-    if (meta.purpose === 'APPOINTMENT' && transaction.doctorId) {
-      await settleDoctorPayment(transaction)
-    }
-    // INSTANT_CONSULT: escrow — doctor paid only on accept (see settleInstantConsultOnAccept)
-
-    if (meta.purpose === 'PREMIO' && meta.planType) {
-      const premio = await fulfillPremioPurchase(
-        auth.context.userId,
-        meta.planType,
-        Number(transaction.amountTotal),
-        txid,
-        transaction.id,
-      )
-      return ok({
-        message:  'تم الدفع وتفعيل البريميو بنجاح 💎',
-        premioId: premio.id,
-        txHash:   txid,
-      })
-    }
-
-    if (meta.purpose === 'APPOINTMENT' && meta.appointmentId && meta.paymentType) {
-      const txType = meta.transactionType ?? 'APPOINTMENT_FEE'
-      if (txType === 'INSTANT_CONSULT') {
-        return ok({ error: true, message: 'نوع الدفع غير معروف' })
-      }
-      await fulfillAppointmentPayment(
-        meta.appointmentId,
-        meta.paymentType,
-        txType,
-        auth.context.userId,
-        Number(transaction.amountTotal),
-        transaction.id,
-        Number(transaction.platformFee),
-        Number(transaction.receiverAmount),
-      )
-      return ok({
-        message:       'تم الدفع بنجاح',
-        appointmentId: meta.appointmentId,
-        txHash:        txid,
-      })
-    }
-
-    if (meta.purpose === 'INSTANT_CONSULT' && meta.instantConsultId) {
-      await fulfillInstantConsultPayment(
-        meta.instantConsultId,
-        auth.context.userId,
-        Number(transaction.amountTotal),
-        transaction.id,
-      )
-      return ok({
-        message: 'تم الدفع — بانتظار قبول الطبيب',
-        instantConsultId: meta.instantConsultId,
-        txHash: txid,
-      })
-    }
-
-    if (meta.purpose === 'PAID_AD' && meta.adId) {
-      await fulfillPaidAdPayment(
-        meta.adId,
-        auth.context.userId,
-        Number(transaction.amountTotal),
-        txid,
-        paymentId,
-        transaction.id,
-      )
-      return ok({
-        message: 'تم الدفع — بانتظار مراجعة الإعلان',
-        adId: meta.adId,
-        txHash: txid,
-      })
-    }
-
-    return ok({ error: true, message: 'نوع الدفع غير معروف' })
+    return ok({ message: result.message, transactionId: transaction.id, ...result.extra })
   } catch (err) {
     console.error('[POST /api/payment/pi/complete]', err)
     return ok({ error: true, message: 'فشل إتمام الدفع عبر Pi Network' })

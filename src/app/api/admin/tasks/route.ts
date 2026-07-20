@@ -1,6 +1,6 @@
 // src/app/api/admin/tasks/route.ts
 import { NextRequest } from 'next/server'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requireOwnerAuth } from '@/infrastructure/auth/providers/role-guard'
 import { requireAdminPermission, ADMIN_PERMISSION_KEYS } from '@/lib/admin/permissions'
 import { prisma, db } from '@/lib/prisma'
 import { ok, created, fromAppError, serverError } from '@/lib/api-response'
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
 // POST — إنشاء مهمة جديدة (المالك فقط)
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body   = await req.json()

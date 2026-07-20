@@ -75,6 +75,27 @@ export async function refundAppointmentPayments(
   const totalRefund = paidTxs.reduce((sum, tx) => sum + Number(tx.amountTotal), 0)
   if (totalRefund <= 0.0001) return { refunded: false, already: true }
 
+  const pendingRefund = await prisma.transaction.create({
+    data: {
+      userId: client.id,
+      doctorId: appointment.doctorId,
+      appointmentId,
+      type: TransactionType.REFUND,
+      status: TransactionStatus.PENDING,
+      amountTotal: totalRefund,
+      platformFee: 0,
+      receiverAmount: 0,
+      notes: txNotes({
+        purpose: 'APPOINTMENT_REFUND',
+        appointmentId,
+        reason: reason ?? null,
+        originalTransactionIds: paidTxs.map(t => t.id),
+        piUsername: client.piUsername,
+        walletMode: 'processing',
+      }),
+    },
+  })
+
   let walletRefund = totalRefund
   let creditRefund = 0
   let walletMode: 'completed' | 'pending' | 'skipped' = 'skipped'
@@ -143,15 +164,10 @@ export async function refundAppointmentPayments(
       })
     }
 
-    await db.transaction.create({
+    await db.transaction.update({
+      where: { id: pendingRefund.id },
       data: {
-        userId: client.id,
-        doctorId: appointment.doctorId,
-        appointmentId,
-        type: TransactionType.REFUND,
         status: refundStatus,
-        amountTotal: totalRefund,
-        platformFee: 0,
         receiverAmount: walletRefund + creditRefund,
         txHash: (a2uMeta.txHash as string | undefined) ?? undefined,
         notes: txNotes({
@@ -163,6 +179,7 @@ export async function refundAppointmentPayments(
           walletMode,
           originalTransactionIds: paidTxs.map(t => t.id),
           piUsername: client.piUsername,
+          refundTransactionId: pendingRefund.id,
           ...a2uMeta,
         }),
       },

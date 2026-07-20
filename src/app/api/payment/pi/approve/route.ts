@@ -94,6 +94,9 @@ export async function POST(req: NextRequest) {
       })
       if (!appointment) return ok({ error: true, message: 'الموعد غير موجود' })
       if (appointment.isPaid) return ok({ error: true, message: 'تم دفع هذا الموعد مسبقاً' })
+      if (paymentType === 'DEPOSIT' && appointment.isDepositPaid) {
+        return ok({ error: true, message: 'تم دفع العربون مسبقاً' })
+      }
 
       const doctorPolicy = appointment.doctor?.paymentPolicy ?? PaymentPolicy.PAY_ON_SERVICE
       if (

@@ -2,7 +2,7 @@
 // إدارة أوزان Risk Engine من لوحة المالك
 
 import { NextRequest }    from 'next/server'
-import { requireAuth }    from '@/infrastructure/auth/providers/role-guard'
+import { requireOwnerAuth }    from '@/infrastructure/auth/providers/role-guard'
 import { db }             from '@/lib/prisma'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { Role, ActivityType } from '@prisma/client'
@@ -12,7 +12,7 @@ import { z }              from 'zod'
 // GET — جلب الـ config الحالي مع الـ defaults
 export async function GET() {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const current = await loadConfigFromDB()
@@ -44,7 +44,7 @@ const UpdateSchema = z.object({
 // POST — تحديث وزن قاعدة واحدة
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body   = await req.json()
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
 // PUT — إعادة ضبط كل الأوزان للقيم الافتراضية
 export async function PUT() {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     // حذف كل risk_engine configs

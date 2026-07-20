@@ -10,6 +10,18 @@ function roundPi(n: number): number {
   return Math.round(n * 10000) / 10000
 }
 
+function parseNotes(notes: string | null): Record<string, unknown> {
+  try {
+    return JSON.parse(notes ?? '{}') as Record<string, unknown>
+  } catch {
+    return {}
+  }
+}
+
+function txNotes(payload: Record<string, unknown>) {
+  return JSON.stringify(payload)
+}
+
 /** تقسيم مبلغ موعد/استشارة: 5% للمنصة، 95% للطبيب */
 export function splitDoctorPayment(amount: number) {
   const platformFee = roundPi(amount * PLATFORM_FEE_RATE)
@@ -41,10 +53,22 @@ export async function settleDoctorPayment(transaction: {
 
   if (receiver <= 0) return
 
+  const row = await prisma.transaction.findUnique({
+    where: { id: transaction.id },
+    select: { notes: true },
+  })
+  const meta = parseNotes(row?.notes ?? null)
+  if (meta.doctorSettled === true) return
+
   const doctor = await prisma.doctorProfile.update({
     where: { id: transaction.doctorId },
     data:  { piBalance: { increment: receiver } },
     select: { userId: true, piBalance: true },
+  })
+
+  await prisma.transaction.update({
+    where: { id: transaction.id },
+    data: { notes: txNotes({ ...meta, doctorSettled: true }) },
   })
 
   await prisma.notification.create({

@@ -12,6 +12,10 @@ import {
 import { notifyReviewRequested } from '@/lib/reviews/notifications'
 import { canActAsPatient, isAppointmentOwner } from '@/lib/client/patient-access'
 import { refundAppointmentPayments } from '@/lib/payment/appointment-refund'
+import {
+  canSetDoctorNotes,
+  canTransitionAppointmentStatus,
+} from '@/lib/appointments/status-transitions'
 import { z } from 'zod'
 
 const UpdateStatusSchema = z.object({
@@ -81,6 +85,14 @@ export async function PUT(
       !isAppointmentOwner(userId, appointment.clientId)
     ) {
       return ok({ error: true, message: 'لا يمكنك إلغاء موعد لا يخصك' })
+    }
+
+    if (!canTransitionAppointmentStatus(appointment.status, status, role)) {
+      return ok({ error: true, message: 'لا يمكن تغيير حالة الموعد بهذا الشكل' })
+    }
+
+    if (doctorNotes && !canSetDoctorNotes(role)) {
+      return ok({ error: true, message: 'ملاحظات الطبيب للطبيب أو المنشأة فقط' })
     }
 
     const updated = await prisma.appointment.update({
