@@ -6,7 +6,6 @@ import { PI_AUTH_SCOPES } from '@/lib/pi/pi-scopes'
 import { resolveIncompletePiPayment, flushPendingIncompletePayments } from '@/lib/pi/resolve-incomplete-payment'
 
 export const PI_SKIP_AUTO_LOGIN_KEY = 'pi_skip_auto_login'
-export const PI_EXPLICIT_LOGOUT_KEY = 'pi_explicit_logout'
 
 let initSandbox: boolean | null = null
 
@@ -49,25 +48,16 @@ export async function isPiBrowserReady(timeoutMs = 12_000): Promise<boolean> {
 }
 
 export function markExplicitLogout(): void {
-  try {
-    sessionStorage.setItem(PI_SKIP_AUTO_LOGIN_KEY, '1')
-    localStorage.setItem(PI_EXPLICIT_LOGOUT_KEY, '1')
-  } catch { /* ignore */ }
+  try { sessionStorage.setItem(PI_SKIP_AUTO_LOGIN_KEY, '1') } catch {}
 }
 
 export function clearExplicitLogout(): void {
-  try {
-    sessionStorage.removeItem(PI_SKIP_AUTO_LOGIN_KEY)
-    localStorage.removeItem(PI_EXPLICIT_LOGOUT_KEY)
-  } catch { /* ignore */ }
+  try { sessionStorage.removeItem(PI_SKIP_AUTO_LOGIN_KEY) } catch {}
   clearPiSessionRedirectLoop()
 }
 
 export function shouldSkipPiAutoLogin(): boolean {
-  try {
-    if (localStorage.getItem(PI_EXPLICIT_LOGOUT_KEY) === '1') return true
-    return sessionStorage.getItem(PI_SKIP_AUTO_LOGIN_KEY) === '1'
-  } catch { return false }
+  try { return sessionStorage.getItem(PI_SKIP_AUTO_LOGIN_KEY) === '1' } catch { return false }
 }
 
 async function requestCookieAccess(): Promise<void> {
@@ -209,7 +199,6 @@ async function exchangePiTokenForSession(
   const target = session?.user ? resolvePostLoginPath(session) : redirectPath
 
   if (typeof window !== 'undefined') {
-    await requestCookieAccess()
     window.location.href = inner.mfaRequired ? '/login/mfa' : target
   }
 
@@ -233,9 +222,7 @@ function isPiEntryPath(): boolean {
 export async function runPiAuthOnLoad(): Promise<'redirecting' | 'idle'> {
   if (!isPiEntryPath()) return 'idle'
   if (shouldSkipPiAutoLogin()) return 'idle'
-  if (shouldBlockPiDashboardRedirect()) {
-    return 'idle'
-  }
+  if (shouldBlockPiDashboardRedirect()) return 'idle'
   try {
     await requestPiCookieAccess()
     const res = await fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
@@ -243,13 +230,7 @@ export async function runPiAuthOnLoad(): Promise<'redirecting' | 'idle'> {
     if (session?.user) {
       clearPiSessionRedirectLoop()
       if (typeof window !== 'undefined') {
-        const p = window.location.pathname
-        const dest =
-          p === '/login' || p === '/pi-login.html'
-            ? '/pi-app.html'
-            : resolvePostLoginPath(session)
-        await requestPiCookieAccess()
-        window.location.href = dest
+        window.location.href = resolvePostLoginPath(session)
       }
       return 'redirecting'
     }

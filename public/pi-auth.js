@@ -1,28 +1,18 @@
 /** Pi Network auth — init → authenticate → backend /v2/me via NextAuth */
 window.PiAuth = (function () {
   var SKIP_KEY = 'pi_skip_auto_login'
-  var LOGOUT_KEY = 'pi_explicit_logout'
   var initSandbox = null
 
   function shouldSkipAuto() {
-    try {
-      if (localStorage.getItem(LOGOUT_KEY) === '1') return true
-      return sessionStorage.getItem(SKIP_KEY) === '1'
-    } catch (e) { return false }
+    try { return sessionStorage.getItem(SKIP_KEY) === '1' } catch (e) { return false }
   }
 
   function markSkipAuto() {
-    try {
-      sessionStorage.setItem(SKIP_KEY, '1')
-      localStorage.setItem(LOGOUT_KEY, '1')
-    } catch (e) {}
+    try { sessionStorage.setItem(SKIP_KEY, '1') } catch (e) {}
   }
 
   function clearSkipAuto() {
-    try {
-      sessionStorage.removeItem(SKIP_KEY)
-      localStorage.removeItem(LOGOUT_KEY)
-    } catch (e) {}
+    try { sessionStorage.removeItem(SKIP_KEY) } catch (e) {}
   }
 
   var PENDING_INCOMPLETE_KEY = 'pi_pending_incomplete'
@@ -199,9 +189,12 @@ window.PiAuth = (function () {
       if (u.role === 'FACILITY') return '/onboarding/facility'
       return '/select-role'
     }
+    if (u.role === 'CLIENT') return '/dashboard/client/appointments'
+    if (u.role === 'DOCTOR') return '/dashboard/doctor/schedule'
+    if (u.role === 'FACILITY') return '/dashboard/facility/overview'
     if (u.role === 'OWNER') return '/owner'
     if (u.role === 'ADMIN') return '/dashboard/admin/verification'
-    return '/pi-app.html'
+    return '/dashboard'
   }
 
   /** Pi iframe: session cookie may lag — retry then static hub fallback. */
@@ -245,9 +238,7 @@ window.PiAuth = (function () {
     clearSkipAuto()
     clearSessionRedirectLoop()
     markSessionRedirect()
-    requestCookieAccess().then(function () {
-      window.location.href = path
-    })
+    window.location.href = path
   }
 
   function establishSession(accessToken, role) {
@@ -340,27 +331,8 @@ window.PiAuth = (function () {
 
   function runOnLoad() {
     if (!isEntryPath()) return Promise.resolve({ mode: 'idle' })
-
-    var loggedOutParam = location.search.indexOf('logged_out=1') !== -1
-    if (loggedOutParam) markSkipAuto()
-
-    if (shouldSkipAuto()) {
-      return requestCookieAccess()
-        .then(function () {
-          return fetch('/api/auth/pi-logout', {
-            method: 'POST',
-            credentials: 'include',
-            cache: 'no-store',
-          })
-        })
-        .then(function () { return { mode: 'idle' } })
-        .catch(function () { return { mode: 'idle' } })
-    }
-
-    if (shouldBlockDashboardRedirect()) {
-      markSkipAuto()
-      return Promise.resolve({ mode: 'idle' })
-    }
+    if (shouldSkipAuto()) return Promise.resolve({ mode: 'idle' })
+    if (shouldBlockDashboardRedirect()) return Promise.resolve({ mode: 'idle' })
     return requestCookieAccess()
       .then(function () {
         return fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
@@ -370,11 +342,7 @@ window.PiAuth = (function () {
         if (s && s.user) {
           clearSkipAuto()
           clearSessionRedirectLoop()
-          var dest = resolvePostLoginPath(s)
-          if (location.pathname === '/login' || location.pathname === '/pi-login.html') {
-            dest = '/pi-app.html'
-          }
-          window.location.href = dest
+          window.location.href = resolvePostLoginPath(s)
           return { mode: 'redirecting' }
         }
         return { mode: 'idle' }
@@ -389,62 +357,28 @@ window.PiAuth = (function () {
     return runOnLoad().then(function (auth) { return !!auth })
   }
 
-  function clearPiSessionStorage() {
-    try {
-      sessionStorage.removeItem(SKIP_KEY)
-      sessionStorage.removeItem(PENDING_INCOMPLETE_KEY)
-      sessionStorage.removeItem(LOOP_KEY)
-      localStorage.removeItem(LOGOUT_KEY)
-    } catch (e) {}
-  }
-
   function signOut(redirectTo) {
     markSkipAuto()
-    clearPiSessionStorage()
-    var target = redirectTo || '/pi.html?logged_out=1'
-    if (target.indexOf('logged_out') === -1) {
-      target += (target.indexOf('?') === -1 ? '?' : '&') + 'logged_out=1'
-    }
-
-    function finish(url) {
-      window.location.replace(url || target)
-    }
-
-    return requestCookieAccess()
-      .then(function () {
-        return fetch('/api/auth/pi-logout', {
+    var target = redirectTo || '/'
+    return fetchCsrf()
+      .then(function (csrf) {
+        return fetch('/api/auth/signout', {
           method: 'POST',
           credentials: 'include',
-          cache: 'no-store',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            csrfToken: csrf.csrfToken,
+            callbackUrl: target,
+            json: 'true',
+          }).toString(),
         })
       })
       .then(function (r) { return r.json() })
       .then(function (data) {
-        var inner = (data && data.data) || data
-        finish((inner && inner.redirect) || target)
+        window.location.href = (data && data.url) ? data.url : target
       })
       .catch(function () {
-        return requestCookieAccess()
-          .then(fetchCsrf)
-          .then(function (csrf) {
-            return fetch('/api/auth/signout', {
-              method: 'POST',
-              credentials: 'include',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({
-                csrfToken: csrf.csrfToken,
-                callbackUrl: target,
-                json: 'true',
-              }).toString(),
-            })
-          })
-          .then(function (r) { return r.json() })
-          .then(function (data) {
-            finish((data && data.url) || target)
-          })
-          .catch(function () {
-            finish(target)
-          })
+        window.location.href = target
       })
   }
 

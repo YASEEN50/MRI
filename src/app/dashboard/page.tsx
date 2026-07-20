@@ -1,43 +1,18 @@
-'use client'
-
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+// src/app/dashboard/page.tsx
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { redirect } from 'next/navigation'
 import { Role } from '@prisma/client'
 
-/** Client redirect — Pi Browser may not send session cookie on navigation (SSR would fail). */
-export default function DashboardPage() {
-  const { data: session, status } = useSession()
-  const router = useRouter()
+export default async function DashboardPage() {
+  const session = await getServerSession(authOptions)
+  if (!session) redirect('/login')
 
-  useEffect(() => {
-    if (status === 'loading') return
-    if (status === 'unauthenticated') {
-      router.replace('/login')
-      return
-    }
-
-    switch (session?.user?.role) {
-      case Role.OWNER:
-        router.replace('/owner')
-        break
-      case Role.ADMIN:
-        router.replace('/dashboard/admin/verification')
-        break
-      case Role.DOCTOR:
-        router.replace('/dashboard/doctor/schedule')
-        break
-      case Role.FACILITY:
-        router.replace('/dashboard/facility/overview')
-        break
-      default:
-        router.replace('/dashboard/client/appointments')
-    }
-  }, [status, session, router])
-
-  return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-      <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full" />
-    </div>
-  )
+  switch (session.user.role) {
+    case Role.OWNER:    redirect('/owner')
+    case Role.ADMIN:    redirect('/dashboard/admin/verification')
+    case Role.DOCTOR:   redirect('/dashboard/doctor/schedule')
+    case Role.FACILITY: redirect('/dashboard/facility/overview')
+    default:            redirect('/dashboard/client/appointments')
+  }
 }

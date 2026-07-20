@@ -75,25 +75,7 @@
     }
 
     document.getElementById('logoutBtn').addEventListener('click', function () {
-      var btn = document.getElementById('logoutBtn')
-      btn.disabled = true
-      btn.innerHTML = '<span class="pi-auth-spinner"></span> جاري الخروج...'
-      window.PiAuth.signOut('/pi.html?logged_out=1').catch(function () {
-        btn.disabled = false
-        btn.textContent = 'تسجيل الخروج'
-        document.getElementById('err').textContent = 'تعذّر تسجيل الخروج — حاول مرة أخرى'
-      })
-    })
-
-    document.querySelectorAll('#menu a[href^="/"]').forEach(function (link) {
-      link.addEventListener('click', function (e) {
-        var href = link.getAttribute('href')
-        if (!href || href === '/pi-app.html') return
-        e.preventDefault()
-        requestCookieAccess().then(function () {
-          window.location.href = href
-        })
-      })
+      window.PiAuth.signOut('/pi-app.html')
     })
 
     document.getElementById('piBtn').addEventListener('click', function () {
@@ -108,74 +90,40 @@
     })
 
     function showGuest() {
-      document.getElementById('welcomeTitle').textContent = 'مرحباً بك'
-      document.getElementById('menu').style.display = 'none'
       document.getElementById('user').className = 'pi-auth-hint'
       document.getElementById('user').textContent = 'لم يتم تسجيل الدخول — سجّل الدخول عبر Pi'
       document.getElementById('piBtn').style.display = 'block'
       document.getElementById('registerBtn').style.display = 'block'
     }
 
-    function refreshSessionUi() {
-      if (window.PiAuth.shouldSkipAuto()) {
-        return requestCookieAccess()
-          .then(function () {
-            return fetch('/api/auth/pi-logout', {
-              method: 'POST',
-              credentials: 'include',
-              cache: 'no-store',
-            })
-          })
-          .then(function () {
-            showGuest()
-          })
-          .catch(function () {
-            showGuest()
-          })
-      }
-
-      return requestCookieAccess().then(function () {
-        return fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
-      }).then(function (r) { return r.json() })
-        .then(function (s) {
-          if (!s || !s.user) {
-            showGuest()
-            return
-          }
-
-          var next = resolvePostLoginPath(s)
-          if (next) {
-            document.getElementById('user').className = 'pi-auth-hint loading pi-auth-status'
-            document.getElementById('user').innerHTML = '<span class="pi-auth-spinner"></span> جاري إعداد حسابك...'
-            window.location.replace(next)
-            return
-          }
-
-          var label = s.user.piUsername ? '@' + s.user.piUsername : (s.user.email || 'بك')
-          document.getElementById('welcomeTitle').textContent = 'مرحباً'
-          document.getElementById('user').className = 'pi-auth-hint'
-          document.getElementById('user').textContent = 'مسجّل كـ ' + label
-          document.getElementById('piBtn').style.display = 'none'
-          document.getElementById('registerBtn').style.display = 'none'
-          document.getElementById('menu').style.display = 'block'
-        })
-        .catch(function () {
-          document.getElementById('err').textContent = 'تعذر التحقق من الجلسة — جرّب مرة أخرى'
+    requestCookieAccess().then(function () {
+      return fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
+    }).then(function (r) { return r.json() })
+      .then(function (s) {
+        if (!s || !s.user) {
           showGuest()
-        })
-    }
+          if (!window.PiAuth.shouldSkipAuto()) window.PiAuth.tryAutoSignIn()
+          return
+        }
 
-    if (location.search.indexOf('logged_out=1') !== -1) {
-      window.PiAuth.markSkipAuto()
-    }
+        var next = resolvePostLoginPath(s)
+        if (next) {
+          document.getElementById('user').className = 'pi-auth-hint loading pi-auth-status'
+          document.getElementById('user').innerHTML = '<span class="pi-auth-spinner"></span> جاري إعداد حسابك...'
+          window.location.replace(next)
+          return
+        }
 
-    refreshSessionUi()
-
-    document.addEventListener('visibilitychange', function () {
-      if (document.visibilityState === 'visible') {
-        refreshSessionUi()
-      }
-    })
+        var label = s.user.piUsername ? '@' + s.user.piUsername : (s.user.email || 'بك')
+        document.getElementById('welcomeTitle').textContent = 'مرحباً'
+        document.getElementById('user').className = 'pi-auth-hint'
+        document.getElementById('user').textContent = 'مسجّل كـ ' + label
+        document.getElementById('menu').style.display = 'block'
+      })
+      .catch(function () {
+        document.getElementById('err').textContent = 'تعذر التحقق من الجلسة — جرّب مرة أخرى'
+        showGuest()
+      })
   })()
   </script>
 </body>

@@ -1,8 +1,8 @@
 // src/middleware.ts — Edge-safe (no @prisma/client imports)
 import { withAuth, NextRequestWithAuth } from 'next-auth/middleware'
+import { getToken } from 'next-auth/jwt'
 import { NextResponse } from 'next/server'
 import type { NextFetchEvent, NextRequest } from 'next/server'
-import { readMiddlewareAuthToken } from '@/lib/auth/middleware-token'
 
 const PATIENT_CAPABLE_ROLES = new Set(['CLIENT', 'OWNER', 'ADMIN'])
 
@@ -59,6 +59,21 @@ function isPiRequest(req: NextRequest): boolean {
 function isProtectedPath(pathname: string): boolean {
   const prefixes = ['/owner', '/admin', '/doctor', '/facility', '/select-role', '/onboarding', '/dashboard']
   return prefixes.some(p => pathname === p || pathname.startsWith(`${p}/`))
+}
+
+/** Re-validates session via NextAuth (runs JWT callback + DB isActive check). */
+async function isSessionActive(req: NextRequest): Promise<boolean> {
+  try {
+    const res = await fetch(new URL('/api/auth/session', req.url), {
+      headers: { cookie: req.headers.get('cookie') ?? '' },
+      cache: 'no-store',
+    })
+    if (!res.ok) return false
+    const data = (await res.json()) as { user?: { id?: string } }
+    return !!data?.user?.id
+  } catch {
+    return false
+  }
 }
 
 const authMiddleware = withAuth(
@@ -157,7 +172,7 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
     if (piRewrite) return piRewrite
 
     if (req.nextUrl.pathname === '/') {
-      const token = await readMiddlewareAuthToken(req)
+      const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
       if (!token) {
         if (req.nextUrl.searchParams.get('site') === 'full') {
           return NextResponse.redirect(new URL('/login?site=full', req.url))
@@ -183,19 +198,11 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
 
     let res: NextResponse
     if (isProtectedPath(req.nextUrl.pathname)) {
-      const token = await readMiddlewareAuthToken(req)
-      if (token?.isActive === false) {
+      const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+      if (token && !(await isSessionActive(req))) {
         return NextResponse.redirect(new URL('/login?error=AccountSuspended', req.url))
       }
-      if (token) {
-        res = authMiddleware(req as NextRequestWithAuth, event) as NextResponse
-      } else if (isPiRequest(req)) {
-        // Pi iframe: session cookie may reach fetch APIs but not document navigation.
-        // Allow shell to load; client SessionProvider + APIs enforce auth.
-        res = applyPiWebViewHeaders(NextResponse.next())
-      } else {
-        res = authMiddleware(req as NextRequestWithAuth, event) as NextResponse
-      }
+      res = authMiddleware(req as NextRequestWithAuth, event) as NextResponse
     } else {
       res = NextResponse.next()
     }

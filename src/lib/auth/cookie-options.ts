@@ -16,9 +16,7 @@ export function sessionCookieName(): string {
 
 export function sessionCookieOptions(maxAge = SESSION_MAX_AGE_SEC) {
   const crossSite = isCrossSiteAuthCookieMode()
-  // Partitioned (CHIPS) cookies are sent on fetch but often NOT on document
-  // navigation inside Pi Browser iframe — opt-in only.
-  const partitioned = crossSite && process.env.NEXTAUTH_COOKIE_PARTITIONED === 'true'
+  const partitioned = crossSite && process.env.NEXTAUTH_COOKIE_PARTITIONED !== 'false'
   return {
     httpOnly: true,
     secure: crossSite || process.env.NODE_ENV === 'production',
