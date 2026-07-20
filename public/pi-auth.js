@@ -1,18 +1,28 @@
 /** Pi Network auth — init → authenticate → backend /v2/me via NextAuth */
 window.PiAuth = (function () {
   var SKIP_KEY = 'pi_skip_auto_login'
+  var LOGOUT_KEY = 'pi_explicit_logout'
   var initSandbox = null
 
   function shouldSkipAuto() {
-    try { return sessionStorage.getItem(SKIP_KEY) === '1' } catch (e) { return false }
+    try {
+      if (localStorage.getItem(LOGOUT_KEY) === '1') return true
+      return sessionStorage.getItem(SKIP_KEY) === '1'
+    } catch (e) { return false }
   }
 
   function markSkipAuto() {
-    try { sessionStorage.setItem(SKIP_KEY, '1') } catch (e) {}
+    try {
+      sessionStorage.setItem(SKIP_KEY, '1')
+      localStorage.setItem(LOGOUT_KEY, '1')
+    } catch (e) {}
   }
 
   function clearSkipAuto() {
-    try { sessionStorage.removeItem(SKIP_KEY) } catch (e) {}
+    try {
+      sessionStorage.removeItem(SKIP_KEY)
+      localStorage.removeItem(LOGOUT_KEY)
+    } catch (e) {}
   }
 
   var PENDING_INCOMPLETE_KEY = 'pi_pending_incomplete'
@@ -101,7 +111,6 @@ window.PiAuth = (function () {
     })
   }
 
-  /** Pi Desktop App Studio preview runs in sandbox even on production URLs */
   function detectSandboxClient() {
     try {
       var hostRef = location.hostname + ' ' + (document.referrer || '')
@@ -157,7 +166,6 @@ window.PiAuth = (function () {
     )
   }
 
-  /** Always await init then authenticate — required for Pi App Studio verification */
   function authenticatePi() {
     return initPi()
       .then(callAuthenticate)
@@ -181,7 +189,7 @@ window.PiAuth = (function () {
   }
 
   function resolvePostLoginPath(session) {
-    if (!session || !session.user) return '/pi-app.html'
+    if (!session || !session.user) return '/login'
     var u = session.user
     if (u.isProfileComplete === false) {
       if (u.role === 'CLIENT') return '/onboarding/client'
@@ -197,7 +205,6 @@ window.PiAuth = (function () {
     return '/dashboard'
   }
 
-  /** Pi iframe: session cookie may lag — retry then static hub fallback. */
   function verifySessionThenGo() {
     function attempt(n) {
       return readSession().then(function (s) {
@@ -208,9 +215,8 @@ window.PiAuth = (function () {
           return
         }
         if (n >= 4) {
-          clearSkipAuto()
           clearSessionRedirectLoop()
-          window.location.href = '/pi-app.html'
+          window.location.href = '/login'
           return
         }
         return wait(300 * (n + 1)).then(function () { return attempt(n + 1) })
@@ -238,7 +244,9 @@ window.PiAuth = (function () {
     clearSkipAuto()
     clearSessionRedirectLoop()
     markSessionRedirect()
-    window.location.href = path
+    requestCookieAccess().then(function () {
+      window.location.href = path
+    })
   }
 
   function establishSession(accessToken, role) {
@@ -267,17 +275,12 @@ window.PiAuth = (function () {
           throw new Error(mapPiSessionError(inner))
         }
         return flushPendingIncomplete(accessToken).then(function () {
-          var path = inner.redirectPath || '/pi-app.html'
           if (inner.mfaRequired) {
             goToPath('/login/mfa')
             return
           }
           return readSession().then(function (s) {
-            if (s && s.user) {
-              goToPath(resolvePostLoginPath(s))
-              return
-            }
-            goToPath(path)
+            goToPath(s && s.user ? resolvePostLoginPath(s) : (inner.redirectPath || '/dashboard'))
           })
         })
       })
@@ -303,11 +306,10 @@ window.PiAuth = (function () {
       })
   }
 
-  /** On load: resume session on Pi entry pages only */
   function isEntryPath() {
     var p = location.pathname
     return p === '/' || p === '/login' || p === '/register' ||
-      p === '/pi.html' || p === '/pi-login.html'
+      p === '/pi.html' || p === '/pi-login.html' || p === '/pi-app.html'
   }
 
   var LOOP_KEY = 'pi_session_redirect_count'
@@ -331,8 +333,28 @@ window.PiAuth = (function () {
 
   function runOnLoad() {
     if (!isEntryPath()) return Promise.resolve({ mode: 'idle' })
-    if (shouldSkipAuto()) return Promise.resolve({ mode: 'idle' })
-    if (shouldBlockDashboardRedirect()) return Promise.resolve({ mode: 'idle' })
+
+    var loggedOutParam = location.search.indexOf('logged_out=1') !== -1
+    if (loggedOutParam) markSkipAuto()
+
+    if (shouldSkipAuto()) {
+      return requestCookieAccess()
+        .then(function () {
+          return fetch('/api/auth/pi-logout', {
+            method: 'POST',
+            credentials: 'include',
+            cache: 'no-store',
+          })
+        })
+        .then(function () { return { mode: 'idle' } })
+        .catch(function () { return { mode: 'idle' } })
+    }
+
+    if (shouldBlockDashboardRedirect()) {
+      markSkipAuto()
+      return Promise.resolve({ mode: 'idle' })
+    }
+
     return requestCookieAccess()
       .then(function () {
         return fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
@@ -359,26 +381,55 @@ window.PiAuth = (function () {
 
   function signOut(redirectTo) {
     markSkipAuto()
-    var target = redirectTo || '/'
-    return fetchCsrf()
-      .then(function (csrf) {
-        return fetch('/api/auth/signout', {
+    try {
+      sessionStorage.removeItem(PENDING_INCOMPLETE_KEY)
+      sessionStorage.removeItem(LOOP_KEY)
+    } catch (e) {}
+
+    var target = redirectTo || '/pi.html?logged_out=1'
+    if (target.indexOf('logged_out') === -1) {
+      target += (target.indexOf('?') === -1 ? '?' : '&') + 'logged_out=1'
+    }
+
+    function finish(url) {
+      window.location.replace(url || target)
+    }
+
+    return requestCookieAccess()
+      .then(function () {
+        return fetch('/api/auth/pi-logout', {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            csrfToken: csrf.csrfToken,
-            callbackUrl: target,
-            json: 'true',
-          }).toString(),
+          cache: 'no-store',
         })
       })
       .then(function (r) { return r.json() })
       .then(function (data) {
-        window.location.href = (data && data.url) ? data.url : target
+        var inner = (data && data.data) || data
+        finish((inner && inner.redirect) || target)
       })
       .catch(function () {
-        window.location.href = target
+        return requestCookieAccess()
+          .then(fetchCsrf)
+          .then(function (csrf) {
+            return fetch('/api/auth/signout', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                csrfToken: csrf.csrfToken,
+                callbackUrl: target,
+                json: 'true',
+              }).toString(),
+            })
+          })
+          .then(function (r) { return r.json() })
+          .then(function (data) {
+            finish((data && data.url) || target)
+          })
+          .catch(function () {
+            finish(target)
+          })
       })
   }
 
@@ -392,5 +443,6 @@ window.PiAuth = (function () {
     markSkipAuto: markSkipAuto,
     clearSkipAuto: clearSkipAuto,
     signOut: signOut,
+    resolvePostLoginPath: resolvePostLoginPath,
   }
 })()
