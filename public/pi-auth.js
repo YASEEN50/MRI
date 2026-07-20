@@ -189,12 +189,9 @@ window.PiAuth = (function () {
       if (u.role === 'FACILITY') return '/onboarding/facility'
       return '/select-role'
     }
-    if (u.role === 'CLIENT') return '/dashboard/client/appointments'
-    if (u.role === 'DOCTOR') return '/dashboard/doctor/schedule'
-    if (u.role === 'FACILITY') return '/dashboard/facility/overview'
     if (u.role === 'OWNER') return '/owner'
     if (u.role === 'ADMIN') return '/dashboard/admin/verification'
-    return '/dashboard'
+    return '/pi-app.html'
   }
 
   /** Pi iframe: session cookie may lag — retry then static hub fallback. */
@@ -238,7 +235,9 @@ window.PiAuth = (function () {
     clearSkipAuto()
     clearSessionRedirectLoop()
     markSessionRedirect()
-    window.location.href = path
+    requestCookieAccess().then(function () {
+      window.location.href = path
+    })
   }
 
   function establishSession(accessToken, role) {
@@ -332,7 +331,10 @@ window.PiAuth = (function () {
   function runOnLoad() {
     if (!isEntryPath()) return Promise.resolve({ mode: 'idle' })
     if (shouldSkipAuto()) return Promise.resolve({ mode: 'idle' })
-    if (shouldBlockDashboardRedirect()) return Promise.resolve({ mode: 'idle' })
+    if (shouldBlockDashboardRedirect()) {
+      markSkipAuto()
+      return Promise.resolve({ mode: 'idle' })
+    }
     return requestCookieAccess()
       .then(function () {
         return fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
@@ -342,7 +344,11 @@ window.PiAuth = (function () {
         if (s && s.user) {
           clearSkipAuto()
           clearSessionRedirectLoop()
-          window.location.href = resolvePostLoginPath(s)
+          var dest = resolvePostLoginPath(s)
+          if (location.pathname === '/login' || location.pathname === '/pi-login.html') {
+            dest = '/pi-app.html'
+          }
+          window.location.href = dest
           return { mode: 'redirecting' }
         }
         return { mode: 'idle' }

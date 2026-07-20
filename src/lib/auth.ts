@@ -72,7 +72,7 @@ async function applyMfaFlagsToToken(token: JWT, userId: string, role: Role, viaM
 const crossSiteCookiesEnabled = isCrossSiteAuthCookieMode()
 
 function crossSiteAuthCookies(): NextAuthOptions['cookies'] {
-  const partitioned = process.env.NEXTAUTH_COOKIE_PARTITIONED !== 'false'
+  const partitioned = process.env.NEXTAUTH_COOKIE_PARTITIONED === 'true'
   const opts = {
     sameSite: 'none' as const,
     path: '/',

@@ -23,16 +23,15 @@ export function resolvePostLoginPath(session: {
 
   switch (user.role) {
     case 'CLIENT':
-      return '/dashboard/client/appointments'
     case 'DOCTOR':
-      return '/dashboard/doctor/schedule'
     case 'FACILITY':
-      return '/dashboard/facility/overview'
+      // Pi Browser hub — static page, no middleware auth loop; links into Next.js app.
+      return '/pi-app.html'
     case 'OWNER':
       return '/owner'
     case 'ADMIN':
       return '/dashboard/admin/verification'
     default:
-      return '/dashboard'
+      return '/pi-app.html'
   }
 }

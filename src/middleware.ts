@@ -1,8 +1,8 @@
 // src/middleware.ts — Edge-safe (no @prisma/client imports)
 import { withAuth, NextRequestWithAuth } from 'next-auth/middleware'
-import { getToken } from 'next-auth/jwt'
 import { NextResponse } from 'next/server'
 import type { NextFetchEvent, NextRequest } from 'next/server'
+import { readMiddlewareAuthToken } from '@/lib/auth/middleware-token'
 
 const PATIENT_CAPABLE_ROLES = new Set(['CLIENT', 'OWNER', 'ADMIN'])
 
@@ -157,7 +157,7 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
     if (piRewrite) return piRewrite
 
     if (req.nextUrl.pathname === '/') {
-      const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+      const token = await readMiddlewareAuthToken(req)
       if (!token) {
         if (req.nextUrl.searchParams.get('site') === 'full') {
           return NextResponse.redirect(new URL('/login?site=full', req.url))
@@ -183,7 +183,7 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
 
     let res: NextResponse
     if (isProtectedPath(req.nextUrl.pathname)) {
-      const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+      const token = await readMiddlewareAuthToken(req)
       // JWT flag set when session is refreshed; avoid internal /api/auth/session fetch
       // in Edge middleware — it fails unreliably on Vercel and blocks valid logins.
       if (token?.isActive === false) {
