@@ -41,6 +41,15 @@ export function PiSessionGate({ children }: { children: React.ReactNode }) {
     }
   }, [bootstrapped, update])
 
+  useEffect(() => {
+    if (!bootstrapped || !isPiBrowser() || status !== 'unauthenticated') return
+    const path = window.location.pathname
+    const protectedPrefixes = ['/dashboard', '/owner', '/admin', '/doctor', '/facility', '/profile']
+    if (protectedPrefixes.some((p) => path === p || path.startsWith(`${p}/`))) {
+      window.location.replace('/pi.html?logged_out=1')
+    }
+  }, [bootstrapped, status])
+
   const waiting = !bootstrapped || (status === 'loading' && isPiBrowser())
 
   if (waiting) {

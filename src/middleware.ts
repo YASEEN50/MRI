@@ -184,12 +184,18 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
     let res: NextResponse
     if (isProtectedPath(req.nextUrl.pathname)) {
       const token = await readMiddlewareAuthToken(req)
-      // JWT flag set when session is refreshed; avoid internal /api/auth/session fetch
-      // in Edge middleware — it fails unreliably on Vercel and blocks valid logins.
       if (token?.isActive === false) {
         return NextResponse.redirect(new URL('/login?error=AccountSuspended', req.url))
       }
-      res = authMiddleware(req as NextRequestWithAuth, event) as NextResponse
+      if (token) {
+        res = authMiddleware(req as NextRequestWithAuth, event) as NextResponse
+      } else if (isPiRequest(req)) {
+        // Pi iframe: session cookie may reach fetch APIs but not document navigation.
+        // Allow shell to load; client SessionProvider + APIs enforce auth.
+        res = applyPiWebViewHeaders(NextResponse.next())
+      } else {
+        res = authMiddleware(req as NextRequestWithAuth, event) as NextResponse
+      }
     } else {
       res = NextResponse.next()
     }

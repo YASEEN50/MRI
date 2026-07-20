@@ -117,6 +117,23 @@
     }
 
     function refreshSessionUi() {
+      if (window.PiAuth.shouldSkipAuto()) {
+        return requestCookieAccess()
+          .then(function () {
+            return fetch('/api/auth/pi-logout', {
+              method: 'POST',
+              credentials: 'include',
+              cache: 'no-store',
+            })
+          })
+          .then(function () {
+            showGuest()
+          })
+          .catch(function () {
+            showGuest()
+          })
+      }
+
       return requestCookieAccess().then(function () {
         return fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
       }).then(function (r) { return r.json() })
