@@ -237,9 +237,6 @@ model User {
   verificationSessionsAssignedBy VerificationSession[] @relation("VerificationSessionAssigner")
   verificationSessionNotes VerificationSessionNote[] @relation("VerificationSessionNoteAuthor")
   withdrawalRequests   WithdrawalRequest[]   @relation("UserWithdrawals")
-  supportTickets       SupportTicket[]       @relation("SupportTickets")
-  supportTicketsAssigned SupportTicket[]     @relation("SupportAssigned")
-  supportMessages      SupportTicketMessage[] @relation("SupportMessages")
 
   @@map("users")
 }
@@ -1813,64 +1810,3 @@ model FraudEvent {
 // ipAddress    String?
 // deviceId     String?
 // userAgent    String?
-
-// =============================================================================
-// SUPPORT TICKETS (تذاكر الدعم)
-// =============================================================================
-
-enum SupportTicketCategory {
-  ACCOUNT
-  PAYMENT
-  VERIFICATION
-  APPOINTMENT
-  TECHNICAL
-  OTHER
-}
-
-enum SupportTicketStatus {
-  OPEN
-  WAITING_USER
-  WAITING_SUPPORT
-  RESOLVED
-  CLOSED
-}
-
-model SupportTicket {
-  id          String                @id @default(uuid())
-  userId      String
-  category    SupportTicketCategory
-  subject     String
-  status      SupportTicketStatus   @default(OPEN)
-  priority    TaskPriority          @default(MEDIUM)
-  assignedTo  String?
-  lastReplyAt DateTime?
-  closedAt    DateTime?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-
-  user       User                   @relation("SupportTickets", fields: [userId], references: [id], onDelete: Cascade)
-  assignee   User?                  @relation("SupportAssigned", fields: [assignedTo], references: [id], onDelete: SetNull)
-  messages   SupportTicketMessage[]
-
-  @@index([userId])
-  @@index([status])
-  @@index([assignedTo])
-  @@index([createdAt])
-  @@map("support_tickets")
-}
-
-model SupportTicketMessage {
-  id          String   @id @default(uuid())
-  ticketId    String
-  senderId    String
-  body        String   @db.Text
-  isStaffReply Boolean @default(false)
-  createdAt   DateTime @default(now())
-
-  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  sender User          @relation("SupportMessages", fields: [senderId], references: [id], onDelete: Cascade)
-
-  @@index([ticketId])
-  @@index([createdAt])
-  @@map("support_ticket_messages")
-}
