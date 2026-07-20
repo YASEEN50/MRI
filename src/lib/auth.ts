@@ -11,6 +11,7 @@ import { consumeMfaSignInToken } from '@/lib/mfa/signin-token'
 import { resolveMfaSessionFlags } from '@/lib/mfa/session-flags'
 import { getApprovalStatus, getProfileCompleteness } from '@/lib/auth/session-helpers'
 import { isCrossSiteAuthCookieMode } from '@/lib/auth/cookie-options'
+import { isUserAccountActive } from '@/lib/auth/active-account'
 
 declare module 'next-auth' {
   interface Session {
@@ -48,6 +49,7 @@ declare module 'next-auth/jwt' {
     isProfileComplete: boolean
     mfaEnabled?: boolean
     mfaVerified?: boolean
+    isActive?: boolean
   }
 }
 
@@ -203,6 +205,7 @@ export const authOptions: NextAuthOptions = {
         token.piUid = user.piUid ?? undefined
         token.piUsername = user.piUsername ?? undefined
         token.isProfileComplete = user.isProfileComplete
+        token.isActive = true
         if (user.email) (token as { email?: string }).email = user.email
         await applyMfaFlagsToToken(
           token,
@@ -210,6 +213,8 @@ export const authOptions: NextAuthOptions = {
           user.role,
           (user as { viaMfaToken?: boolean }).viaMfaToken === true,
         )
+      } else if (token.id) {
+        token.isActive = await isUserAccountActive(token.id as string)
       }
       if (trigger === 'update' && session) {
         if (session.role) token.role = session.role
@@ -237,6 +242,9 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
+      if (token.isActive === false) {
+        return { ...session, expires: new Date(0).toISOString() }
+      }
       session.user.id = token.id
       session.user.role = token.role
       session.user.approvalStatus = token.approvalStatus

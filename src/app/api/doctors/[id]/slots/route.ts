@@ -18,7 +18,12 @@ export async function GET(
     }
 
     const doctor = await prisma.doctorProfile.findFirst({
-      where: { id: doctorId, deletedAt: null, approvalStatus: 'APPROVED' },
+      where: {
+        id: doctorId,
+        deletedAt: null,
+        approvalStatus: 'APPROVED',
+        user: { isActive: true },
+      },
       select: { id: true },
     })
     if (!doctor) return ok({ error: true, message: 'الطبيب غير متاح' })

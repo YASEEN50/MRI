@@ -1,12 +1,18 @@
 import { ApprovalStatus, ActivityType, Role } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { invalidateUserSessions } from '@/lib/auth/active-account'
+import { applyAccountSuspendEnforcement } from '@/lib/owner/suspend-enforcement'
 import { syncLegacyVerificationOnRejected } from '@/lib/verification/lifecycle'
+
+export type SuspendAccountResult =
+  | { ok: true; enforcement: Awaited<ReturnType<typeof applyAccountSuspendEnforcement>> }
+  | { ok: false; message: string }
 
 export async function suspendUserAccount(
   userId: string,
   actorId: string,
   reason: string,
-): Promise<{ ok: true } | { ok: false; message: string }> {
+): Promise<SuspendAccountResult> {
   const user = await prisma.user.findFirst({
     where: { id: userId, deletedAt: null },
     select: { id: true, role: true, isActive: true, email: true, piUsername: true },
@@ -20,13 +26,17 @@ export async function suspendUserAccount(
     data: { isActive: false, updatedAt: new Date() },
   })
 
+  await invalidateUserSessions(userId)
+
+  const enforcement = await applyAccountSuspendEnforcement(userId, actorId, reason)
+
   await prisma.activityLog.create({
     data: {
       actorId,
       action: ActivityType.BAN_USER,
       targetType: 'USER',
       targetId: userId,
-      details: { reason },
+      details: { reason, enforcement },
     },
   })
 
@@ -40,7 +50,7 @@ export async function suspendUserAccount(
     },
   }).catch(() => {})
 
-  return { ok: true }
+  return { ok: true, enforcement }
 }
 
 export async function unsuspendUserAccount(
