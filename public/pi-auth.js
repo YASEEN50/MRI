@@ -1,18 +1,28 @@
 /** Pi Network auth — init → authenticate → backend /v2/me via NextAuth */
 window.PiAuth = (function () {
   var SKIP_KEY = 'pi_skip_auto_login'
+  var LOGOUT_KEY = 'pi_explicit_logout'
   var initSandbox = null
 
   function shouldSkipAuto() {
-    try { return sessionStorage.getItem(SKIP_KEY) === '1' } catch (e) { return false }
+    try {
+      if (localStorage.getItem(LOGOUT_KEY) === '1') return true
+      return sessionStorage.getItem(SKIP_KEY) === '1'
+    } catch (e) { return false }
   }
 
   function markSkipAuto() {
-    try { sessionStorage.setItem(SKIP_KEY, '1') } catch (e) {}
+    try {
+      sessionStorage.setItem(SKIP_KEY, '1')
+      localStorage.setItem(LOGOUT_KEY, '1')
+    } catch (e) {}
   }
 
   function clearSkipAuto() {
-    try { sessionStorage.removeItem(SKIP_KEY) } catch (e) {}
+    try {
+      sessionStorage.removeItem(SKIP_KEY)
+      localStorage.removeItem(LOGOUT_KEY)
+    } catch (e) {}
   }
 
   var PENDING_INCOMPLETE_KEY = 'pi_pending_incomplete'
@@ -330,7 +340,23 @@ window.PiAuth = (function () {
 
   function runOnLoad() {
     if (!isEntryPath()) return Promise.resolve({ mode: 'idle' })
-    if (shouldSkipAuto()) return Promise.resolve({ mode: 'idle' })
+
+    var loggedOutParam = location.search.indexOf('logged_out=1') !== -1
+    if (loggedOutParam) markSkipAuto()
+
+    if (shouldSkipAuto()) {
+      return requestCookieAccess()
+        .then(function () {
+          return fetch('/api/auth/pi-logout', {
+            method: 'POST',
+            credentials: 'include',
+            cache: 'no-store',
+          })
+        })
+        .then(function () { return { mode: 'idle' } })
+        .catch(function () { return { mode: 'idle' } })
+    }
+
     if (shouldBlockDashboardRedirect()) {
       markSkipAuto()
       return Promise.resolve({ mode: 'idle' })
@@ -368,6 +394,7 @@ window.PiAuth = (function () {
       sessionStorage.removeItem(SKIP_KEY)
       sessionStorage.removeItem(PENDING_INCOMPLETE_KEY)
       sessionStorage.removeItem(LOOP_KEY)
+      localStorage.removeItem(LOGOUT_KEY)
     } catch (e) {}
   }
 

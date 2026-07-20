@@ -1,4 +1,6 @@
 import { cookies } from 'next/headers'
+import { NextResponse } from 'next/server'
+import { appendSessionCookieClears } from '@/lib/auth/clear-session-cookies'
 import { sessionCookieName, sessionCookieOptions } from '@/lib/auth/cookie-options'
 import { ok, serverError } from '@/lib/api-response'
 
@@ -24,7 +26,8 @@ export async function POST() {
       })
     }
 
-    return ok({ redirect: '/pi.html?logged_out=1' })
+    const res = ok({ redirect: '/pi.html?logged_out=1' }) as NextResponse
+    return appendSessionCookieClears(res)
   } catch (err) {
     console.error('[POST /api/auth/pi-logout]', err)
     return serverError()
