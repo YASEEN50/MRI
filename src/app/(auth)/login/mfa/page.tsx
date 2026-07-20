@@ -41,7 +41,7 @@ export default function MfaLoginPage() {
         return
       }
 
-      await update({ mfaVerified: true })
+      await update()
       router.push(inner.redirectPath ?? '/admin')
       router.refresh()
     } catch {

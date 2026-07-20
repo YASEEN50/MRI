@@ -52,7 +52,7 @@ export default function MfaSetupPanel() {
       }
       setBackupCodes(json.data.backupCodes ?? [])
       setStep('done')
-      await update({ mfaEnabled: true, mfaVerified: true })
+      await update()
     } catch {
       setError('حدث خطأ في الاتصال')
     } finally {

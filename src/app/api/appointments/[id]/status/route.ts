@@ -11,6 +11,7 @@ import {
 } from '@/lib/appointments/notifications'
 import { notifyReviewRequested } from '@/lib/reviews/notifications'
 import { canActAsPatient, isAppointmentOwner } from '@/lib/client/patient-access'
+import { refundAppointmentPayments } from '@/lib/payment/appointment-refund'
 import { z } from 'zod'
 
 const UpdateStatusSchema = z.object({
@@ -96,6 +97,9 @@ export async function PUT(
     if (status === AppointmentStatus.CANCELLED) {
       cancelRemindersForAppointment(id).catch(console.error)
       notifyAppointmentCancelled(id).catch(console.error)
+      if (appointment.isPaid || appointment.isDepositPaid) {
+        await refundAppointmentPayments(id, cancelReason ?? 'إلغاء الموعد')
+      }
     }
 
     if (status === AppointmentStatus.CONFIRMED) {

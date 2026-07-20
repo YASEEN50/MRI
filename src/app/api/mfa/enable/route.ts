@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { BusinessRuleError } from '@/core/errors'
 import { decryptMfaSecret } from '@/lib/mfa/secret-crypto'
 import { generateBackupCodes, verifyTotpCode } from '@/lib/mfa/totp'
+import { reissueUserSessionCookie } from '@/lib/auth/reissue-user-session'
 
 const PENDING_PREFIX = 'mfa-pending:'
 
@@ -52,6 +53,8 @@ export async function POST(req: NextRequest) {
     await prisma.verificationToken.deleteMany({
       where: { identifier: `${PENDING_PREFIX}${auth.context.userId}` },
     })
+
+    await reissueUserSessionCookie(auth.context.userId, { mfaJustVerified: true })
 
     return ok({
       message: 'تم تفعيل MFA بنجاح',

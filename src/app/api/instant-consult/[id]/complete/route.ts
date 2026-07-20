@@ -5,6 +5,8 @@ import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 import { canActAsPatient, getClientProfileId } from '@/lib/client/patient-access'
 import { notifyInstantConsultReviewRequested } from '@/lib/reviews/notifications'
+import { refundInstantConsultPayment } from '@/lib/payment/instant-consult-escrow'
+import { buildInstantConsultRefundMessage } from '@/lib/payment/instant-consult-refund-split'
 
 export async function POST(
   _req: NextRequest,
@@ -59,6 +61,28 @@ export async function POST(
         where: { id },
         data: { status: InstantConsultStatus.CANCELLED },
       })
+
+      if (request.isPaid) {
+        const refund = await refundInstantConsultPayment(id)
+        if (refund.refunded) {
+          await prisma.notification.create({
+            data: {
+              userId: auth.context.userId,
+              title: '💰 تم إلغاء الاستشارة واسترداد المبلغ',
+              body: buildInstantConsultRefundMessage(
+                {
+                  creditRefund: refund.creditRefund ?? 0,
+                  walletRefund: refund.walletRefund ?? 0,
+                },
+                refund.walletMode ?? 'skipped',
+              ),
+              type: 'INSTANT_CONSULT_REFUNDED',
+              data: { requestId: id },
+            },
+          }).catch(() => {})
+        }
+      }
+
       return ok({ cancelled: true })
     }
 
