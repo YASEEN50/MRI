@@ -6,9 +6,13 @@ import { PiLoginSchema } from '@/lib/validations/auth.schema'
 import { UnauthorizedError } from '@/core/errors'
 import { verifyPiAccessToken } from '@/lib/pi/verify-access-token'
 import { resolvePiLoginUser } from '@/lib/auth/account-linking'
+import { enforceAuthRateLimit } from '@/lib/auth/enforce-auth-rate-limit'
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = await enforceAuthRateLimit(req, 'pi-login')
+    if (limited) return limited
+
     const body   = await req.json()
     const parsed = parseBody(PiLoginSchema, body)
     if (!parsed.success) return parsed.response

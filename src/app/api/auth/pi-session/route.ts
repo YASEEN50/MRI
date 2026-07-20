@@ -3,9 +3,13 @@ import { cookies } from 'next/headers'
 import { ok, fromZodError, serverError } from '@/lib/api-response'
 import { establishPiSession, PiSessionBodySchema } from '@/lib/auth/pi-session'
 import { sessionCookieName, sessionCookieOptions, SESSION_MAX_AGE_SEC } from '@/lib/auth/cookie-options'
+import { enforceAuthRateLimit } from '@/lib/auth/enforce-auth-rate-limit'
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = await enforceAuthRateLimit(req, 'pi-session')
+    if (limited) return limited
+
     const body = await req.json()
     const parsed = PiSessionBodySchema.safeParse(body)
     if (!parsed.success) return fromZodError(parsed.error)

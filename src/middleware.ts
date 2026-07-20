@@ -211,6 +211,9 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
     return res
   } catch (err) {
     console.error('[middleware]', err)
+    if (isProtectedPath(req.nextUrl.pathname)) {
+      return NextResponse.redirect(new URL('/login?error=ServerError', req.url))
+    }
     return NextResponse.next()
   }
 }
