@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { verifyMfaChallengeToken } from '@/lib/mfa/challenge-token'
 import { createMfaSignInToken } from '@/lib/mfa/signin-token'
 import { consumeBackupCode, verifyStoredTotp } from '@/lib/mfa/totp'
+import { enforceAuthRateLimit } from '@/lib/auth/enforce-auth-rate-limit'
 
 const Schema = z.object({
   challengeToken: z.string().min(10),
@@ -13,6 +14,9 @@ const Schema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = await enforceAuthRateLimit(req, 'mfa-verify')
+    if (limited) return limited
+
     const body = await req.json()
     const parsed = Schema.safeParse(body)
     if (!parsed.success) return fromZodError(parsed.error)

@@ -64,6 +64,13 @@ function memoryFallback(
   return { success: r.success, remaining: r.remaining, resetIn: r.resetIn }
 }
 
+/** POST auth endpoints — 5 attempts per 15 minutes (per IP + endpoint) */
+export async function rateLimitAuth(ip: string, endpoint: string): Promise<RateLimitCheckResult> {
+  const upstash = await checkUpstash(`auth:${endpoint}`, ip, 5, '15 m')
+  if (upstash) return upstash
+  return memoryFallback(`auth:${ip}:${endpoint}`, 5, 15 * 60 * 1000)
+}
+
 /** GET /api/doctors — 100 طلب/دقيقة (حسب IP) */
 export async function rateLimitDoctors(ip: string): Promise<RateLimitCheckResult> {
   const upstash = await checkUpstash('doctors', ip, 100, '1 m')

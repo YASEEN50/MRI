@@ -9,6 +9,7 @@ import { verifyStoredTotp, consumeBackupCode } from '@/lib/mfa/totp'
 import { reissueUserSessionCookie } from '@/lib/auth/reissue-user-session'
 import { getProfileCompleteness } from '@/lib/auth/session-helpers'
 import { resolvePostLoginPath } from '@/lib/pi/pi-post-login-path'
+import { enforceAuthRateLimit } from '@/lib/auth/enforce-auth-rate-limit'
 
 const Schema = z.object({
   code: z.string().min(6).max(16),
@@ -16,6 +17,9 @@ const Schema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = await enforceAuthRateLimit(req, 'mfa-verify-session')
+    if (limited) return limited
+
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) return fromAppError(new UnauthorizedError())
 
