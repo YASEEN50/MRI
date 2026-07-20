@@ -4,13 +4,12 @@ import { NextRequest } from 'next/server'
 import { ApprovalStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { ok, serverError } from '@/lib/api-response'
+import { parsePagination } from '@/lib/api-pagination'
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = req.nextUrl
-    const page   = Number(searchParams.get('page')  ?? 1)
-    const limit  = Number(searchParams.get('limit') ?? 20)
-    const skip   = (page - 1) * limit
+    const { page, limit, skip } = parsePagination(searchParams)
     const search = searchParams.get('search') ?? ''
     const type   = searchParams.get('type') ?? ''
     const city   = searchParams.get('city') ?? ''

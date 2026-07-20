@@ -9,6 +9,7 @@ import {
   notifyAdminsPublicationPendingReview,
 } from '@/lib/notifications/service'
 import { publicationExcerpt } from '@/lib/publications/excerpt'
+import { parsePagination } from '@/lib/api-pagination'
 
 const CreateSchema = z.object({
   title:   z.string().min(5).max(300),
@@ -27,12 +28,10 @@ function resolveDoctorSubmitStatus(publish: boolean): PublicationStatus {
 // GET — جلب المنشورات العامة أو منشورات الطبيب
 export async function GET(req: NextRequest) {
   try {
-    const page   = Number(req.nextUrl.searchParams.get('page')  ?? 1)
-    const limit  = Number(req.nextUrl.searchParams.get('limit') ?? 12)
+    const { page, limit, skip } = parsePagination(req.nextUrl.searchParams, { limit: 12, maxLimit: 50 })
     const type   = req.nextUrl.searchParams.get('type') as PublicationType | null
     const search = req.nextUrl.searchParams.get('search') ?? ''
     const mine   = req.nextUrl.searchParams.get('mine') === 'true'
-    const skip   = (page - 1) * limit
 
     let where: Record<string, unknown> = { deletedAt: null }
 

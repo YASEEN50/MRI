@@ -1,9 +1,10 @@
 // src/app/api/onboarding/client/route.ts
 import { NextRequest } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { prisma } from '@/lib/prisma'
-import { ok, serverError } from '@/lib/api-response'
+import { ok, fromAppError, serverError } from '@/lib/api-response'
+import { Role } from '@prisma/client'
+import { PATIENT_CAPABLE_ROLES } from '@/lib/client/patient-access'
 import { z } from 'zod'
 
 const Schema = z.object({
@@ -17,15 +18,15 @@ const Schema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) return ok({ error: true, message: 'غير مصرح' })
+    const auth = await requireAuth({ roles: PATIENT_CAPABLE_ROLES })
+    if (!auth.success) return fromAppError(auth.error)
 
     const body   = await req.json()
     const parsed = Schema.safeParse(body)
     if (!parsed.success) return ok({ error: true, message: 'بيانات غير صحيحة' })
 
     const { fullName, phone, gender, dateOfBirth, city, country } = parsed.data
-    const userId = session.user.id
+    const userId = auth.context.userId
 
     // تقسيم الاسم الكامل
     const parts     = fullName.trim().split(' ')

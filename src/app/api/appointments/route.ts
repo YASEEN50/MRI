@@ -9,7 +9,8 @@ import { canActAsPatient } from '@/lib/client/patient-access'
 import { createRemindersForAppointment } from '@/lib/cron/reminders.service'
 import { doctorHasActivePremioByProfileId } from '@/lib/premio/active-premio'
 import { appointmentVideoFields } from '@/lib/appointments/online-video'
-import { assertBookableSlot } from '@/lib/appointments/booking'
+import { assertBookableSlot, createBookedAppointment } from '@/lib/appointments/booking'
+import { parsePagination } from '@/lib/api-pagination'
 import { notifyAppointmentBooked } from '@/lib/appointments/notifications'
 import { isOnlineBookingEnabled } from '@/lib/appointments/online-video'
 import { buildFacilityAppointmentWhere } from '@/lib/facility/appointment-scope'
@@ -31,13 +32,11 @@ export async function GET(req: NextRequest) {
     if (!auth.success) return fromAppError(auth.error)
 
     const { userId, role } = auth.context
-    const page   = Number(req.nextUrl.searchParams.get('page')  ?? 1)
-    const limit  = Number(req.nextUrl.searchParams.get('limit') ?? 20)
+    const { page, limit, skip } = parsePagination(req.nextUrl.searchParams)
     const status = req.nextUrl.searchParams.get('status')
     const doctorId = req.nextUrl.searchParams.get('doctorId')
     const fromDate = req.nextUrl.searchParams.get('fromDate')
     const toDate = req.nextUrl.searchParams.get('toDate')
-    const skip   = (page - 1) * limit
 
     let where: any = { deletedAt: null }
     const scopeAll = req.nextUrl.searchParams.get('scope') === 'all'
@@ -196,19 +195,31 @@ export async function POST(req: NextRequest) {
     })
     if (!slotCheck.ok) return ok({ error: true, message: slotCheck.message })
 
-    const appointment = await prisma.appointment.create({
-      data: {
-        clientId:    auth.context.userId,
-        doctorId,
-        facilityId,
-        type,
-        scheduledAt: scheduledDate,
-        duration,
-        reason,
-        notes,
-        fee:         resolvedFee,
-      },
-    })
+    let appointment
+    try {
+      appointment = await createBookedAppointment(
+        {
+          clientId:    auth.context.userId,
+          doctorId,
+          facilityId,
+          type,
+          scheduledAt: scheduledDate,
+          duration,
+          reason,
+          notes,
+          fee:         resolvedFee,
+        },
+        {
+          scheduledAt: scheduledDate,
+          duration,
+          doctorId,
+          facilityId,
+        },
+      )
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'فشل حجز الموعد'
+      return ok({ error: true, message })
+    }
 
     createRemindersForAppointment(appointment.id).catch(console.error)
     notifyAppointmentBooked(appointment.id).catch(console.error)

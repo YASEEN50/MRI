@@ -1,10 +1,12 @@
 // src/app/api/moderation/reports/route.ts
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requireAdminPermission, ADMIN_PERMISSION_KEYS } from '@/lib/admin/permissions'
 import { prisma, db } from '@/lib/prisma'
 import { ok, created, fromAppError, serverError } from '@/lib/api-response'
-import { Role } from '@prisma/client'
 import { z } from 'zod'
+import { validateReportTarget } from '@/lib/moderation/validate-report-target'
+import { parsePagination } from '@/lib/api-pagination'
 
 const ReportSchema = z.object({
   contentType: z.enum(['PUBLICATION','REVIEW','CHAT_MESSAGE','PROFILE']),
@@ -16,16 +18,14 @@ const ReportSchema = z.object({
 // GET — جلب التقارير (للأدمن والمالك)
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.ADMIN, Role.OWNER] })
+    const auth = await requireAdminPermission(ADMIN_PERMISSION_KEYS.canModerateContent)
     if (!auth.success) return fromAppError(auth.error)
 
     const status  = req.nextUrl.searchParams.get('status') ?? 'PENDING'
     const type    = req.nextUrl.searchParams.get('type')
-    const page    = Number(req.nextUrl.searchParams.get('page') ?? 1)
-    const limit   = Number(req.nextUrl.searchParams.get('limit') ?? 20)
-    const skip    = (page - 1) * limit
+    const { page, limit, skip } = parsePagination(req.nextUrl.searchParams)
 
-    const where: any = {}
+    const where: Record<string, unknown> = {}
     if (status !== 'all') where.status = status
     if (type)             where.contentType = type
 
@@ -57,6 +57,9 @@ export async function POST(req: NextRequest) {
     const body   = await req.json()
     const parsed = ReportSchema.safeParse(body)
     if (!parsed.success) return ok({ error: true, message: 'بيانات غير صحيحة' })
+
+    const targetCheck = await validateReportTarget(parsed.data.contentType, parsed.data.contentId)
+    if (!targetCheck.ok) return ok({ error: true, message: targetCheck.message })
 
     // التحقق من عدم التكرار
     const existing = await db.contentReport.findFirst({

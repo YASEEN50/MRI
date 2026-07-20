@@ -1,6 +1,65 @@
-import { Role } from '@prisma/client'
+import { Role, AppointmentStatus, InstantConsultStatus } from '@prisma/client'
 import { prisma, db } from '@/lib/prisma'
 import { canActAsPatient, getClientProfileId } from '@/lib/client/patient-access'
+
+export async function assertPatientCanChatWithDoctor(
+  clientProfileId: string,
+  doctorProfileId: string,
+): Promise<boolean> {
+  const client = await prisma.clientProfile.findUnique({
+    where: { id: clientProfileId },
+    select: { userId: true },
+  })
+  if (!client) return false
+
+  const appointment = await prisma.appointment.findFirst({
+    where: {
+      doctorId: doctorProfileId,
+      clientId: client.userId,
+      deletedAt: null,
+      status: { in: [AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED] },
+    },
+    select: { id: true },
+  })
+  if (appointment) return true
+
+  const consult = await prisma.instantConsultRequest.findFirst({
+    where: {
+      clientId: clientProfileId,
+      doctorId: doctorProfileId,
+      status: { in: [InstantConsultStatus.ACCEPTED, InstantConsultStatus.COMPLETED] },
+    },
+    select: { id: true },
+  })
+  return !!consult
+}
+
+export async function canAccessChatFile(
+  userId: string,
+  role: Role,
+  storageKey: string,
+): Promise<boolean> {
+  if (!storageKey.startsWith('chat/')) return false
+
+  const fileName = storageKey.split('/').pop()
+  if (!fileName) return false
+
+  const messages = await db.chatMessage.findMany({
+    where: {
+      deletedAt: null,
+      fileUrl: { contains: fileName },
+    },
+    select: { roomId: true },
+    take: 20,
+  })
+  if (!messages.length) return false
+
+  for (const msg of messages) {
+    const room = await getChatRoomForUser(msg.roomId, userId, role)
+    if (room) return true
+  }
+  return false
+}
 
 export async function getChatRoomForUser(
   roomId: string,

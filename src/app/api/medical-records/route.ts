@@ -9,8 +9,9 @@ import { z } from 'zod'
 import { validateFileBuffer } from '@/lib/verification/file-validator'
 import type { AllowedMimeType } from '@/core/interfaces/services/file-storage.interface'
 import { canActAsPatient, getClientProfileId, ensureClientProfile } from '@/lib/client/patient-access'
-import { doctorSharedRecordsWhere } from '@/lib/medical-records/access'
+import { doctorSharedRecordsWhere, assertDoctorPatientRelationship, validateAppointmentForMedicalRecord } from '@/lib/medical-records/access'
 import { saveMedicalRecordFile, medicalRecordFileUrl, deleteMedicalRecordFile } from '@/lib/medical-records/storage'
+import { parsePagination } from '@/lib/api-pagination'
 import { writeMedicalRecordAudit } from '@/lib/medical-records/audit'
 
 export const runtime = 'nodejs'
@@ -62,10 +63,12 @@ export async function GET(req: NextRequest) {
     if (type) where.type = type
     if (shared) where.isShared = true
 
+    const { limit } = parsePagination(req.nextUrl.searchParams, { limit: 50, maxLimit: 100 })
+
     const records = await db.medicalRecord.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      take: limit,
       include: {
         doctor: { select: { firstName: true, lastName: true, specialization: true } },
         appointment: { select: { scheduledAt: true, type: true } },
@@ -179,6 +182,22 @@ export async function POST(req: NextRequest) {
       doctorId = doctor.id
       clientId = parsed.clientId ?? null
       if (!clientId) return ok({ error: true, message: 'يجب تحديد المريض' })
+
+      const hasRelationship = await assertDoctorPatientRelationship(doctor.id, clientId)
+      if (!hasRelationship) {
+        return ok({ error: true, message: 'لا يوجد موعد مؤكد مع هذا المريض' })
+      }
+
+      if (parsed.appointmentId) {
+        const validAppt = await validateAppointmentForMedicalRecord({
+          appointmentId: parsed.appointmentId,
+          doctorProfileId: doctor.id,
+          clientProfileId: clientId,
+        })
+        if (!validAppt) {
+          return ok({ error: true, message: 'الموعد المحدد غير صالح لهذا المريض' })
+        }
+      }
     }
 
     const recordId = randomUUID()

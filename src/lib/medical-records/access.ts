@@ -4,6 +4,53 @@ import { Role, AppointmentStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { canActAsPatient } from '@/lib/client/patient-access'
 
+/** Doctor must have a confirmed/completed appointment with the patient. */
+export async function assertDoctorPatientRelationship(
+  doctorProfileId: string,
+  clientProfileId: string,
+): Promise<boolean> {
+  const clientProfile = await prisma.clientProfile.findUnique({
+    where: { id: clientProfileId },
+    select: { userId: true },
+  })
+  if (!clientProfile) return false
+
+  const relationship = await prisma.appointment.findFirst({
+    where: {
+      doctorId: doctorProfileId,
+      clientId: clientProfile.userId,
+      deletedAt: null,
+      status: { in: [AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED] },
+    },
+    select: { id: true },
+  })
+  return !!relationship
+}
+
+export async function validateAppointmentForMedicalRecord(params: {
+  appointmentId: string
+  doctorProfileId: string
+  clientProfileId: string
+}): Promise<boolean> {
+  const clientProfile = await prisma.clientProfile.findUnique({
+    where: { id: params.clientProfileId },
+    select: { userId: true },
+  })
+  if (!clientProfile) return false
+
+  const appt = await prisma.appointment.findFirst({
+    where: {
+      id: params.appointmentId,
+      doctorId: params.doctorProfileId,
+      clientId: clientProfile.userId,
+      deletedAt: null,
+      status: { in: [AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED] },
+    },
+    select: { id: true },
+  })
+  return !!appt
+}
+
 export interface AuthContext {
   userId: string
   role: Role

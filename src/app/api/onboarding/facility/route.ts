@@ -1,10 +1,9 @@
 // src/app/api/onboarding/facility/route.ts
 import { NextRequest } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { prisma } from '@/lib/prisma'
-import { ok, serverError } from '@/lib/api-response'
-import { ApprovalStatus, FacilityType } from '@prisma/client'
+import { ok, fromAppError, serverError } from '@/lib/api-response'
+import { ApprovalStatus, FacilityType, Role } from '@prisma/client'
 import { z } from 'zod'
 
 const Schema = z.object({
@@ -20,22 +19,27 @@ const Schema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      console.warn('[onboarding/facility] rejected: no session')
-      return ok({ error: true, message: 'غير مصرح' })
-    }
+    const auth = await requireAuth({ roles: [Role.FACILITY] })
+    if (!auth.success) return fromAppError(auth.error)
 
     const body   = await req.json()
     const parsed = Schema.safeParse(body)
     if (!parsed.success) return ok({ error: true, message: 'بيانات غير صحيحة' })
 
     const data   = parsed.data
-    const userId = session.user.id
+    const userId = auth.context.userId
+
+    const existingProfile = await prisma.facilityProfile.findUnique({
+      where: { userId },
+      select: { approvalStatus: true },
+    })
+    if (existingProfile?.approvalStatus === ApprovalStatus.APPROVED) {
+      return ok({ error: true, message: 'حساب المنشأة معتمد — لا يمكن إعادة تقديم طلب التحقق' })
+    }
 
     // تحقق أن licenseNumber غير مستخدم
-    const existingLicense = await prisma.facilityProfile.findUnique({
-      where: { licenseNumber: data.licenseNumber },
+    const existingLicense = await prisma.facilityProfile.findFirst({
+      where: { licenseNumber: data.licenseNumber, userId: { not: userId } },
       select: { id: true },
     })
     if (existingLicense) return ok({ error: true, message: 'رقم الترخيص مستخدم مسبقاً' })

@@ -1,15 +1,14 @@
 // src/app/api/onboarding/doctor/route.ts
 import { NextRequest } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { prisma, db } from '@/lib/prisma'
-import { ok, serverError } from '@/lib/api-response'
+import { ok, fromAppError, serverError } from '@/lib/api-response'
 import {
   createPendingAiVerificationSession,
   logVerificationPhase,
   VerificationPipelinePhase,
 } from '@/lib/verification/lifecycle'
-import { ApprovalStatus } from '@prisma/client'
+import { ApprovalStatus, Role } from '@prisma/client'
 import { z } from 'zod'
 
 const CredentialSchema = z.object({
@@ -38,8 +37,8 @@ const Schema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) return ok({ error: true, message: 'غير مصرح' })
+    const auth = await requireAuth({ roles: [Role.DOCTOR] })
+    if (!auth.success) return fromAppError(auth.error)
 
     const body   = await req.json()
     const parsed = Schema.safeParse(body)
@@ -49,7 +48,15 @@ export async function POST(req: NextRequest) {
     }
 
     const data   = parsed.data
-    const userId = session.user.id
+    const userId = auth.context.userId
+
+    const existingProfile = await prisma.doctorProfile.findUnique({
+      where: { userId },
+      select: { id: true, approvalStatus: true },
+    })
+    if (existingProfile?.approvalStatus === ApprovalStatus.APPROVED) {
+      return ok({ error: true, message: 'حسابك معتمد — لا يمكن إعادة تقديم طلب التحقق' })
+    }
 
     // تحقق أن licenseNumber غير مستخدم
     const existingLicense = await prisma.doctorProfile.findFirst({
@@ -75,7 +82,7 @@ export async function POST(req: NextRequest) {
         city:              data.city,
         country:           data.country,
         bio:               data.bio,
-        approvalStatus:    ApprovalStatus.PENDING,
+        ...(existingProfile ? {} : { approvalStatus: ApprovalStatus.PENDING }),
       },
       create: {
         userId,

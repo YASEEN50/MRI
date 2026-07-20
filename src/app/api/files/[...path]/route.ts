@@ -1,5 +1,5 @@
 // src/app/api/files/[...path]/route.ts
-// عرض الملفات المحلية (.local-storage) — للأدمن/المالك/الطبيب صاحب الملف
+// عرض الملفات المحلية (.local-storage)
 
 import { NextRequest, NextResponse } from 'next/server'
 import { Role } from '@prisma/client'
@@ -8,6 +8,7 @@ import { fromAppError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 import { isServeableStorageKey } from '@/lib/storage/local-file-url'
 import { readBufferByKey } from '@/lib/storage/production-storage'
+import { canAccessChatFile } from '@/lib/chat/access'
 
 const MIME: Record<string, string> = {
   '.jpg':  'image/jpeg',
@@ -22,11 +23,6 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   try {
-    const auth = await requireAuth({
-      roles: [Role.ADMIN, Role.OWNER, Role.DOCTOR, Role.FACILITY],
-    })
-    if (!auth.success) return fromAppError(auth.error)
-
     const { path } = await params
     const storageKey = path.map(decodeURIComponent).join('/')
 
@@ -34,7 +30,19 @@ export async function GET(
       return NextResponse.json({ error: true, message: 'مسار غير صالح' }, { status: 400 })
     }
 
-    if (auth.context.role === Role.DOCTOR) {
+    const auth = storageKey.startsWith('chat/')
+      ? await requireAuth()
+      : await requireAuth({
+          roles: [Role.ADMIN, Role.OWNER, Role.DOCTOR, Role.FACILITY],
+        })
+    if (!auth.success) return fromAppError(auth.error)
+
+    if (storageKey.startsWith('chat/')) {
+      const allowed = await canAccessChatFile(auth.context.userId, auth.context.role, storageKey)
+      if (!allowed) {
+        return NextResponse.json({ error: true, message: 'غير مصرح' }, { status: 403 })
+      }
+    } else if (auth.context.role === Role.DOCTOR) {
       const profile = await prisma.doctorProfile.findUnique({
         where:  { userId: auth.context.userId },
         select: { id: true },
@@ -48,9 +56,7 @@ export async function GET(
       if (!doc) {
         return NextResponse.json({ error: true, message: 'غير مصرح' }, { status: 403 })
       }
-    }
-
-    if (auth.context.role === Role.FACILITY) {
+    } else if (auth.context.role === Role.FACILITY) {
       const profile = await prisma.facilityProfile.findUnique({
         where: { userId: auth.context.userId },
         select: { licenseDocUrl: true, ownershipDocUrl: true },
