@@ -25,7 +25,22 @@ export async function POST(
     const result = await suspendUserAccount(id, auth.context.userId, parsed.data.reason)
     if (!result.ok) return ok({ error: true, message: result.message })
 
-    return ok({ message: 'تم تجميد الحساب' })
+    const { enforcement } = result
+    const parts = ['تم تجميد الحساب']
+    if (enforcement.cancelledAppointments > 0) {
+      parts.push(`أُلغي ${enforcement.cancelledAppointments} موعد`)
+    }
+    if (enforcement.refundedAppointments > 0) {
+      parts.push(`استُرد ${enforcement.refundedAppointments} دفعة موعد`)
+    }
+    if (enforcement.cancelledConsults > 0) {
+      parts.push(`أُلغي ${enforcement.cancelledConsults} استشارة فورية`)
+    }
+    if (enforcement.refundedConsults > 0) {
+      parts.push(`استُرد ${enforcement.refundedConsults} دفعة استشارة`)
+    }
+
+    return ok({ message: parts.join(' — '), enforcement })
   } catch (err) {
     console.error('[POST /api/owner/users/[id]/suspend]', err)
     return serverError()

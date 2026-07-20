@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { Role, ApprovalStatus } from '@prisma/client'
 import { UnauthorizedError } from '@/core/errors'
 import { PATIENT_CAPABLE_ROLES } from '@/lib/client/patient-access'
+import { isUserAccountActive } from '@/lib/auth/active-account'
 
 export interface GuardOptions {
   roles?: Role[]
@@ -26,11 +27,15 @@ export async function requireAuth(
 ): Promise<AuthSuccess | AuthFailure> {
   const session = await getServerSession(authOptions)
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return { success: false, error: new UnauthorizedError('يجب تسجيل الدخول أولاً') }
   }
 
   const { role, id: userId, approvalStatus, piUid } = session.user
+
+  if (!(await isUserAccountActive(userId))) {
+    return { success: false, error: new UnauthorizedError('تم تجميد حسابك — تواصل مع الدعم') }
+  }
 
   if (options.roles && !options.roles.includes(role)) {
     return { success: false, error: new UnauthorizedError('ليس لديك صلاحية للوصول لهذه الخدمة') }

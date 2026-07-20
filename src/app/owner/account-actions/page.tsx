@@ -55,15 +55,19 @@ export default function OwnerAccountActionsPage() {
     if (status === 'authenticated' && session?.user?.role !== 'OWNER') router.push('/unauthorized')
   }, [status, session, router])
 
-  async function handleSearch() {
+  async function handleSearch(opts?: { preserveSelectedId?: string }) {
     if (query.trim().length < 2) return
     setLoading(true)
     setMessage(null)
-    setSelected(null)
+    if (!opts?.preserveSelectedId) setSelected(null)
     try {
       const res = await fetch(`/api/owner/users/search?q=${encodeURIComponent(query.trim())}`)
       const data = await res.json()
-      setResults(data.data ?? [])
+      const fresh = (data.data ?? []) as UserRow[]
+      setResults(fresh)
+      if (opts?.preserveSelectedId) {
+        setSelected(fresh.find(u => u.id === opts.preserveSelectedId) ?? null)
+      }
     } finally {
       setLoading(false)
     }
@@ -97,12 +101,7 @@ export default function OwnerAccountActionsPage() {
       if (data.success && !data.data?.error) {
         setMessage({ type: 'success', text: data.data?.message ?? 'تم بنجاح' })
         setReason('')
-        await handleSearch()
-        setSelected(prev => {
-          if (!prev) return null
-          const updated = results.find(u => u.id === prev.id)
-          return updated ?? prev
-        })
+        await handleSearch({ preserveSelectedId: selected.id })
       } else {
         setMessage({ type: 'error', text: data.data?.message || 'حدث خطأ' })
       }
@@ -164,7 +163,7 @@ export default function OwnerAccountActionsPage() {
           />
           <button
             type="button"
-            onClick={handleSearch}
+            onClick={() => void handleSearch()}
             disabled={loading || query.trim().length < 2}
             className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white rounded-xl text-sm font-medium"
           >

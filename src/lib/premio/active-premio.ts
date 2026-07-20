@@ -19,11 +19,12 @@ export function doctorProfileApprovedWhere(
   return {
     approvalStatus: ApprovalStatus.APPROVED,
     deletedAt: null,
+    user: { isActive: true },
     ...extra,
   }
 }
 
-/** Public doctor listing: approved + active premio on linked user */
+/** Public doctor listing: approved + active account + active premio on linked user */
 export function doctorProfilePublicWhere(
   extra?: Prisma.DoctorProfileWhereInput
 ): Prisma.DoctorProfileWhereInput {
@@ -31,6 +32,7 @@ export function doctorProfilePublicWhere(
     approvalStatus: ApprovalStatus.APPROVED,
     deletedAt: null,
     user: {
+      isActive: true,
       premios: {
         some: activePremioWhere(),
       },

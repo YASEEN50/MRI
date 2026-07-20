@@ -23,6 +23,7 @@ export async function GET(
     const doctor = await prisma.doctorProfile.findFirst({
       where: { id, deletedAt: null },
       include: {
+        user: { select: { isActive: true } },
         credentials: true,
         availability: { where: { isActive: true }, orderBy: { dayOfWeek: 'asc' } },
       },
@@ -33,6 +34,14 @@ export async function GET(
     const role = session?.user?.role
     const isOwnProfile =
       role === Role.DOCTOR && session?.user?.id === doctor.userId
+
+    if (
+      !doctor.user.isActive &&
+      !canBypassPremioGating(role) &&
+      !isOwnProfile
+    ) {
+      return fromAppError(new NotFoundError(`الطبيب بالمعرف ${id} غير موجود`))
+    }
 
     if (
       doctor.approvalStatus !== 'APPROVED' &&

@@ -82,6 +82,7 @@ export async function establishPiSession(
       piUid: user.piUid,
       piUsername: user.piUsername,
       isProfileComplete,
+      isActive: true,
       mfaEnabled: mfaFlags.mfaEnabled,
       mfaVerified: mfaFlags.mfaVerified,
     },
