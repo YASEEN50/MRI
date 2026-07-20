@@ -15,10 +15,11 @@ export async function expireStaleInstantConsults(): Promise<void> {
   })
 
   for (const row of expired) {
-    await prisma.instantConsultRequest.update({
-      where: { id: row.id },
+    const updated = await prisma.instantConsultRequest.updateMany({
+      where: { id: row.id, status: InstantConsultStatus.PENDING },
       data: { status: InstantConsultStatus.EXPIRED },
     })
+    if (updated.count === 0) continue
     await refundInstantConsultPayment(row.id)
   }
 }

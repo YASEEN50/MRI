@@ -22,7 +22,6 @@ const CreateSchema = z.object({
   duration:    z.number().min(15).max(240),
   reason:      z.string().max(500).optional(),
   notes:       z.string().max(1000).optional(),
-  fee:         z.number().positive().optional(),
 })
 
 // GET — جلب المواعيد حسب الدور
@@ -143,7 +142,7 @@ export async function POST(req: NextRequest) {
     const parsed = CreateSchema.safeParse(body)
     if (!parsed.success) return ok({ error: true, message: 'بيانات غير صحيحة' })
 
-    const { doctorId, facilityId, type, scheduledAt, duration, reason, notes, fee } = parsed.data
+    const { doctorId, facilityId, type, scheduledAt, duration, reason, notes } = parsed.data
 
     if (type === 'ONLINE' && !isOnlineBookingEnabled()) {
       return ok({ error: true, message: 'الاستشارات عن بعد غير متاحة حالياً — يرجى اختيار موعد حضوري' })
@@ -155,13 +154,18 @@ export async function POST(req: NextRequest) {
 
     const scheduledDate = new Date(scheduledAt)
 
-    let resolvedFee = fee
+    let resolvedFee: number | undefined
 
     let doctorPayment: { paymentPolicy: string; depositPercentage: unknown } | null = null
 
     if (doctorId) {
       const doctor = await prisma.doctorProfile.findFirst({
-        where: { id: doctorId, deletedAt: null, approvalStatus: 'APPROVED' },
+        where: {
+          id: doctorId,
+          deletedAt: null,
+          approvalStatus: 'APPROVED',
+          user: { isActive: true },
+        },
         select: { id: true, consultationFee: true, paymentPolicy: true, depositPercentage: true },
       })
       if (!doctor) return ok({ error: true, message: 'الطبيب غير متاح للحجز' })
@@ -171,7 +175,7 @@ export async function POST(req: NextRequest) {
       const listed = await doctorHasActivePremioByProfileId(doctorId)
       if (!listed) return ok({ error: true, message: 'هذا الطبيب غير متاح للحجز حالياً' })
 
-      if (resolvedFee == null && doctor.consultationFee != null) {
+      if (doctor.consultationFee != null) {
         resolvedFee = Number(doctor.consultationFee)
       }
     }

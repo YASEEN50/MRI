@@ -112,8 +112,14 @@ export async function PUT(
     const body = await req.json()
     const { firstName, lastName, specialization, yearsOfExperience, city, consultationFee, bio } = body
 
+    const owned = await prisma.doctorProfile.findFirst({
+      where: { id, userId: auth.context.userId, deletedAt: null },
+      select: { id: true },
+    })
+    if (!owned) return ok({ error: true, message: 'غير مصرح بتعديل هذا الملف' })
+
     const updated = await prisma.doctorProfile.update({
-      where: { id },
+      where: { id: owned.id },
       data: { firstName, lastName, specialization, yearsOfExperience, city, consultationFee, bio, updatedAt: new Date() },
       select: { id: true, firstName: true, lastName: true, specialization: true },
     })

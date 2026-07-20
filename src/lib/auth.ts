@@ -220,22 +220,22 @@ export const authOptions: NextAuthOptions = {
         if (session.role) token.role = session.role
         if (session.approvalStatus !== undefined) token.approvalStatus = session.approvalStatus
         if (session.isProfileComplete !== undefined) token.isProfileComplete = session.isProfileComplete
-        const mfaSession = session as {
-          mfaVerified?: boolean
-          mfaEnabled?: boolean
-          refreshProfile?: boolean
-        }
-        if (mfaSession.mfaVerified !== undefined) token.mfaVerified = mfaSession.mfaVerified
-        if (mfaSession.mfaEnabled !== undefined) token.mfaEnabled = mfaSession.mfaEnabled
-        if (mfaSession.refreshProfile && token.id) {
+        const profileSession = session as { refreshProfile?: boolean }
+        if (profileSession.refreshProfile && token.id) {
           const dbUser = await prisma.user.findFirst({
             where: { id: token.id as string, deletedAt: null },
-            select: { email: true, piUid: true, piUsername: true, role: true },
+            select: { email: true, piUid: true, piUsername: true, role: true, mfaEnabled: true },
           })
           if (dbUser) {
             token.piUid = dbUser.piUid ?? undefined
             token.piUsername = dbUser.piUsername ?? undefined
             if (dbUser.email) (token as { email?: string }).email = dbUser.email
+            await applyMfaFlagsToToken(
+              token,
+              token.id as string,
+              dbUser.role,
+              token.mfaVerified === true,
+            )
           }
         }
       }
