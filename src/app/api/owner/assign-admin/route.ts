@@ -1,10 +1,11 @@
 // src/app/api/owner/assign-admin/route.ts
 import { NextRequest } from 'next/server'
 import { Role } from '@prisma/client'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requireOwnerAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { ALL_ADMIN_PERMISSIONS } from '@/lib/admin/permissions'
 
 const AssignSchema = z.object({
   userId: z.string().uuid(),
@@ -13,7 +14,7 @@ const AssignSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body = await req.json()
@@ -30,6 +31,16 @@ export async function POST(req: NextRequest) {
     if (user.role === Role.ADMIN) return ok({ error: true, message: 'المستخدم أدمن بالفعل' })
 
     await prisma.user.update({ where: { id: userId }, data: { role: Role.ADMIN } })
+
+    await prisma.adminPermission.createMany({
+      data: ALL_ADMIN_PERMISSIONS.map(p => ({
+        adminId: userId,
+        permission: p.key,
+        granted: true,
+        grantedBy: auth.context.userId,
+      })),
+      skipDuplicates: true,
+    })
 
     await prisma.activityLog.create({
       data: {
@@ -61,7 +72,7 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body = await req.json()
@@ -78,6 +89,8 @@ export async function DELETE(req: NextRequest) {
     if (user.role !== Role.ADMIN) return ok({ error: true, message: 'المستخدم ليس أدمن' })
 
     await prisma.user.update({ where: { id: userId }, data: { role: Role.CLIENT } })
+
+    await prisma.adminPermission.deleteMany({ where: { adminId: userId } })
 
     await prisma.activityLog.create({
       data: {
@@ -99,7 +112,7 @@ export async function DELETE(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const type       = req.nextUrl.searchParams.get('type')

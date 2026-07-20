@@ -1,7 +1,7 @@
 // src/app/api/owner/premio-settings/route.ts
 import { NextRequest } from 'next/server'
 import { Role } from '@prisma/client'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requireOwnerAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
@@ -17,7 +17,7 @@ const Schema = z.object({
 
 export async function GET() {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
     const settings = await prisma.premioSettings.findFirst({ orderBy: { createdAt: 'desc' } })
     return ok(settings)
@@ -29,7 +29,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body = await req.json()

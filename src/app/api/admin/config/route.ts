@@ -1,7 +1,7 @@
 // src/app/api/admin/config/route.ts
 import { NextRequest } from 'next/server'
 import { requireAdminPermission, ADMIN_PERMISSION_KEYS } from '@/lib/admin/permissions'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requireOwnerAuth } from '@/infrastructure/auth/providers/role-guard'
 import { prisma, db } from '@/lib/prisma'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { Role } from '@prisma/client'
@@ -24,7 +24,7 @@ const ConfigSchema = z.record(z.string())
 
 export async function PUT(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body   = await req.json()

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { Role } from '@prisma/client'
 import { z } from 'zod'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requireOwnerAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 import { getAdSettings } from '@/lib/ads/settings'
@@ -15,7 +15,7 @@ const Schema = z.object({
 
 export async function GET() {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
     return ok(await getAdSettings())
   } catch (err) {
@@ -26,7 +26,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body = await req.json()

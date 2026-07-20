@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server'
 import { Role } from '@prisma/client'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requireOwnerAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const q = req.nextUrl.searchParams.get('q')?.trim()

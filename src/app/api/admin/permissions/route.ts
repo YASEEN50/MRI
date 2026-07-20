@@ -1,6 +1,6 @@
 // src/app/api/admin/permissions/route.ts
 import { NextRequest } from 'next/server'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requireOwnerAuth, requirePrivilegedAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ALL_ADMIN_PERMISSIONS } from '@/lib/admin/permissions'
 import { prisma, db } from '@/lib/prisma'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
@@ -16,7 +16,7 @@ const PermSchema = z.object({
 // GET — جلب صلاحيات أدمن معين
 export async function GET(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER, Role.ADMIN] })
+    const auth = await requirePrivilegedAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const adminId = req.nextUrl.searchParams.get('adminId') ?? auth.context.userId
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 // POST — تحديث صلاحيات أدمن (المالك فقط)
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body   = await req.json()

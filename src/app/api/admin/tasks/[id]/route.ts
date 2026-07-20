@@ -1,6 +1,6 @@
 // src/app/api/admin/tasks/[id]/route.ts
 import { NextRequest } from 'next/server'
-import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
+import { requireOwnerAuth, requirePrivilegedAuth } from '@/infrastructure/auth/providers/role-guard'
 import { prisma, db } from '@/lib/prisma'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { Role } from '@prisma/client'
@@ -16,7 +16,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth({ roles: [Role.ADMIN, Role.OWNER] })
+    const auth = await requirePrivilegedAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const { id }   = await params
@@ -53,7 +53,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await requireAuth({ roles: [Role.OWNER] })
+    const auth = await requireOwnerAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const { id } = await params

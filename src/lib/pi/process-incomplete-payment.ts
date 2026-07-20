@@ -1,10 +1,8 @@
 import { Role, PremioType, AdPlan, PaidAdStatus, InstantConsultStatus } from '@prisma/client'
-import { fulfillInstantConsultPayment } from '@/lib/payment/fulfill'
 import { prisma } from '@/lib/prisma'
 import { piPaymentService } from '@/infrastructure/pi-network/pi-payment.service'
-import { splitDoctorPayment, splitPremioPayment, settleDoctorPayment } from '@/lib/payment/platform-fee'
-import { fulfillPremioPurchase, fulfillAppointmentPayment } from '@/lib/payment/fulfill'
-import { fulfillPaidAdPayment } from '@/lib/payment/fulfill-paid-ad'
+import { splitDoctorPayment, splitPremioPayment } from '@/lib/payment/platform-fee'
+import { finalizeCompletedPiPayment } from '@/lib/payment/complete-payment'
 import { getAdSettings } from '@/lib/ads/settings'
 import { adPlanPrice } from '@/lib/ads/pricing'
 import type { PiPaymentDto } from '@/lib/pi/pi-payment-dto'
@@ -60,73 +58,13 @@ export async function processIncompletePiPayment(
 
     await piPaymentService.completePayment(paymentId, txid)
 
-    const meta = parseNotes(transaction.notes) as {
-      purpose?: string
-      planType?: PremioType
-      appointmentId?: string
-      paymentType?: 'FULL' | 'DEPOSIT'
-      transactionType?: 'APPOINTMENT_FEE' | 'DEPOSIT' | 'FINAL_PAYMENT'
-      instantConsultId?: string
-      adId?: string
-    }
-
-    await prisma.transaction.update({
-      where: { id: transaction.id },
-      data: { status: 'COMPLETED', txHash: txid },
+    const result = await finalizeCompletedPiPayment({
+      userId,
+      transaction,
+      txHash: txid,
+      piPaymentId: paymentId,
     })
-
-    if (meta.purpose === 'APPOINTMENT' && transaction.doctorId) {
-      await settleDoctorPayment(transaction)
-    }
-
-    if (meta.purpose === 'PREMIO' && meta.planType) {
-      await fulfillPremioPurchase(
-        userId,
-        meta.planType,
-        Number(transaction.amountTotal),
-        txid,
-        transaction.id,
-      )
-      return { message: 'تم إكمال دفع البريميو المعلق' }
-    }
-
-    if (meta.purpose === 'APPOINTMENT' && meta.appointmentId && meta.paymentType) {
-      await fulfillAppointmentPayment(
-        meta.appointmentId,
-        meta.paymentType,
-        meta.transactionType ?? 'APPOINTMENT_FEE',
-        userId,
-        Number(transaction.amountTotal),
-        transaction.id,
-        Number(transaction.platformFee),
-        Number(transaction.receiverAmount),
-      )
-      return { message: 'تم إكمال دفع الموعد المعلق' }
-    }
-
-    if (meta.purpose === 'PAID_AD' && meta.adId) {
-      await fulfillPaidAdPayment(
-        meta.adId,
-        userId,
-        Number(transaction.amountTotal),
-        txid,
-        paymentId,
-        transaction.id,
-      )
-      return { message: 'تم إكمال دفع الإعلان المعلق' }
-    }
-
-    if (meta.purpose === 'INSTANT_CONSULT' && meta.instantConsultId) {
-      await fulfillInstantConsultPayment(
-        meta.instantConsultId,
-        userId,
-        Number(transaction.amountTotal),
-        transaction.id,
-      )
-      return { message: 'تم إكمال دفع الاستشارة الفورية المعلق' }
-    }
-
-    return { message: 'تم إكمال الدفع المعلق' }
+    return { message: result.message }
   }
 
   if (transaction?.status === 'COMPLETED') {
@@ -185,6 +123,10 @@ async function createPendingTransaction(userId: string, role: Role, payment: PiP
       include: { doctor: { select: { id: true, depositPercentage: true, consultationFee: true } } },
     })
     if (!appointment) throw new Error('الموعد غير موجود')
+    if (appointment.isPaid) throw new Error('تم دفع هذا الموعد مسبقاً')
+    if (paymentType === 'DEPOSIT' && appointment.isDepositPaid) {
+      throw new Error('تم دفع العربون مسبقاً')
+    }
 
     const fee = Number(appointment.fee ?? appointment.doctor?.consultationFee ?? 0)
     let transactionType: 'APPOINTMENT_FEE' | 'DEPOSIT' | 'FINAL_PAYMENT' = 'APPOINTMENT_FEE'

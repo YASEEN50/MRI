@@ -134,6 +134,28 @@ export async function refundInstantConsultPayment(
     paidWithCreditOnly,
   })
 
+  const pendingRefund = await prisma.transaction.create({
+    data: {
+      userId: request.client.userId,
+      doctorId: tx?.doctorId ?? null,
+      type: TransactionType.REFUND,
+      status: TransactionStatus.PENDING,
+      amountTotal: fee,
+      platformFee: 0,
+      receiverAmount: 0,
+      notes: txNotes({
+        purpose: 'INSTANT_CONSULT_REFUND',
+        instantConsultId,
+        originalTransactionId: tx?.id ?? null,
+        creditApplied,
+        creditRefund: split.creditRefund,
+        walletRefund: split.walletRefund,
+        walletMode: 'processing',
+        piUsername: request.client.user.piUsername,
+      }),
+    },
+  })
+
   let walletMode: 'completed' | 'pending' | 'skipped' = 'skipped'
   let a2uMeta: Record<string, unknown> = {}
 
@@ -199,14 +221,10 @@ export async function refundInstantConsultPayment(
       })
     }
 
-    await db.transaction.create({
+    await db.transaction.update({
+      where: { id: pendingRefund.id },
       data: {
-        userId: request.client.userId,
-        doctorId: tx?.doctorId ?? null,
-        type: TransactionType.REFUND,
         status: refundStatus,
-        amountTotal: fee,
-        platformFee: 0,
         receiverAmount: split.walletRefund + split.creditRefund,
         txHash: (a2uMeta.txHash as string | undefined) ?? undefined,
         notes: txNotes({
@@ -218,6 +236,7 @@ export async function refundInstantConsultPayment(
           walletRefund: split.walletRefund,
           walletMode,
           piUsername: request.client.user.piUsername,
+          refundTransactionId: pendingRefund.id,
           ...a2uMeta,
         }),
       },
@@ -287,6 +306,7 @@ export function mapPatientRefundRow(r: {
     toAddress: (meta.toAddress as string | null) ?? null,
     txHash: r.txHash,
     instantConsultId: (meta.instantConsultId as string | null) ?? null,
+    appointmentId: (meta.appointmentId as string | null) ?? null,
     piUsername: (meta.piUsername as string | null) ?? r.user?.piUsername ?? null,
     createdAt: r.createdAt.toISOString(),
     patientContact: r.user?.piUsername ?? r.user?.email ?? undefined,
@@ -298,7 +318,10 @@ export async function listPendingPatientRefunds() {
     where: {
       type: TransactionType.REFUND,
       status: TransactionStatus.PENDING,
-      notes: { contains: 'INSTANT_CONSULT_REFUND' },
+      OR: [
+        { notes: { contains: 'INSTANT_CONSULT_REFUND' } },
+        { notes: { contains: 'APPOINTMENT_REFUND' } },
+      ],
     },
     orderBy: { createdAt: 'desc' },
     take: 50,

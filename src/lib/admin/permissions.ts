@@ -32,7 +32,7 @@ export const ADMIN_PERMISSION_KEYS = Object.fromEntries(
   ALL_ADMIN_PERMISSIONS.map((p) => [p.key, p.key])
 ) as Record<AdminPermissionKey, AdminPermissionKey>
 
-/** OWNER always allowed. ADMIN with no rows keeps legacy full access until owner assigns permissions. */
+/** OWNER always allowed. ADMIN needs explicit granted permission (default deny). */
 export async function hasAdminPermission(
   userId: string,
   role: Role,
@@ -46,7 +46,7 @@ export async function hasAdminPermission(
     select: { permission: true },
   })
 
-  if (granted.length === 0) return true
+  if (granted.length === 0) return false
 
   return granted.some((g) => g.permission === permission)
 }
@@ -54,7 +54,7 @@ export async function hasAdminPermission(
 export async function requireAdminPermission(
   permission: AdminPermissionKey
 ): Promise<AuthSuccess | AuthFailure> {
-  const auth = await requireAuth({ roles: [Role.ADMIN, Role.OWNER] })
+  const auth = await requireAuth({ roles: [Role.ADMIN, Role.OWNER], requirePrivilegedMfa: true })
   if (!auth.success) return auth
 
   const allowed = await hasAdminPermission(auth.context.userId, auth.context.role, permission)
@@ -90,7 +90,7 @@ export async function requireVerificationReviewPermission(
 export async function requireAdminPermissionAny(
   permissions: AdminPermissionKey[],
 ): Promise<AuthSuccess | AuthFailure> {
-  const auth = await requireAuth({ roles: [Role.ADMIN, Role.OWNER] })
+  const auth = await requireAuth({ roles: [Role.ADMIN, Role.OWNER], requirePrivilegedMfa: true })
   if (!auth.success) return auth
 
   if (auth.context.role === Role.OWNER) return auth
