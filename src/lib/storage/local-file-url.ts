@@ -6,7 +6,7 @@ export function localFileUrl(storageKey: string): string {
 }
 
 export function isServeableStorageKey(key: string): boolean {
-  return /^(license|credential|dataflow|selfie|id-doc|id|facility-docs|avatars)\/[a-zA-Z0-9-]+\.(jpg|jpeg|png|pdf|webp)$/i.test(key)
+  return /^(license|credential|dataflow|selfie|id-doc|id|facility-docs|avatars|chat)\/[a-zA-Z0-9._-]+\.(jpg|jpeg|png|pdf|webp)$/i.test(key)
 }
 
 /** يحوّل مفتاح تخزين أو رابط محلي إلى URL قابل للعرض */

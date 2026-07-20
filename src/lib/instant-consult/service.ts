@@ -24,6 +24,32 @@ export async function expireStaleInstantConsults(): Promise<void> {
   }
 }
 
+export async function finalizeExpiredInstantSessions(): Promise<number> {
+  const now = new Date()
+  const sessions = await prisma.instantConsultRequest.findMany({
+    where: {
+      status: InstantConsultStatus.ACCEPTED,
+      sessionEndsAt: { lte: now },
+    },
+    select: { id: true, chatRoomId: true },
+  })
+
+  for (const row of sessions) {
+    await prisma.instantConsultRequest.update({
+      where: { id: row.id },
+      data: { status: InstantConsultStatus.COMPLETED, completedAt: now },
+    })
+    if (row.chatRoomId) {
+      await db.chatRoom.update({
+        where: { id: row.chatRoomId },
+        data: { status: 'CLOSED' },
+      }).catch(() => null)
+    }
+  }
+
+  return sessions.length
+}
+
 export async function doctorHasActiveInstantSession(
   doctorId: string,
   excludeRequestId?: string,

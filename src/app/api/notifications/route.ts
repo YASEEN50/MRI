@@ -2,13 +2,14 @@ import { NextRequest } from 'next/server'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { ok, fromAppError, serverError } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
+import { parsePagination } from '@/lib/api-pagination'
 
 export async function GET(req: NextRequest) {
   try {
     const auth = await requireAuth()
     if (!auth.success) return fromAppError(auth.error)
 
-    const limit = Number(req.nextUrl.searchParams.get('limit') ?? 20)
+    const { limit } = parsePagination(req.nextUrl.searchParams)
     const sinceRaw = req.nextUrl.searchParams.get('since')
     const since = sinceRaw ? new Date(sinceRaw) : null
 

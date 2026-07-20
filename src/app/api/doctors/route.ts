@@ -8,6 +8,7 @@ import { listPublicDoctors } from '@/lib/premio/list-doctors'
 import { doctorProfilePublicWhere, expireStalePremios } from '@/lib/premio/active-premio'
 import { prisma } from '@/lib/prisma'
 import { resolveCityCoords } from '@/lib/geo/countries-cities'
+import { parsePagination } from '@/lib/api-pagination'
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,9 +22,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = req.nextUrl
-    const page           = Number(searchParams.get('page')  ?? 1)
-    const limit          = Number(searchParams.get('limit') ?? 20)
-    const skip           = (page - 1) * limit
+    const { page, limit, skip } = parsePagination(searchParams)
     const search         = searchParams.get('search') ?? ''
     const specialization = searchParams.get('specialization') ?? ''
     const city           = searchParams.get('city') ?? ''

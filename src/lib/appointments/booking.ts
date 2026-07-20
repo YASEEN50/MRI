@@ -1,4 +1,4 @@
-import { AppointmentStatus } from '@prisma/client'
+import { Prisma, AppointmentStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import {
   type AvailabilityWindow,
@@ -16,17 +16,21 @@ interface ExistingAppointment {
   duration: number
 }
 
+type TxClient = Prisma.TransactionClient
+
 export async function hasAppointmentConflict(params: {
   doctorId?: string
   facilityId?: string
   scheduledAt: Date
   duration: number
   excludeId?: string
+  tx?: TxClient
 }): Promise<boolean> {
-  const { doctorId, facilityId, scheduledAt, duration, excludeId } = params
+  const { doctorId, facilityId, scheduledAt, duration, excludeId, tx } = params
   if (!doctorId && !facilityId) return false
 
-  const candidates = await prisma.appointment.findMany({
+  const db = tx ?? prisma
+  const candidates = await db.appointment.findMany({
     where: {
       deletedAt: null,
       status: { not: AppointmentStatus.CANCELLED },
@@ -113,19 +117,22 @@ export async function getAvailableSlots(params: {
   return filterBookableSlots([...unique.values()], existing, now)
 }
 
-export async function assertBookableSlot(params: {
-  scheduledAt: Date
-  duration: number
-  doctorId?: string
-  facilityId?: string
-}): Promise<{ ok: true } | { ok: false; message: string }> {
+async function assertBookableSlotInTx(
+  tx: TxClient,
+  params: {
+    scheduledAt: Date
+    duration: number
+    doctorId?: string
+    facilityId?: string
+  },
+): Promise<{ ok: true } | { ok: false; message: string }> {
   const { scheduledAt, duration, doctorId, facilityId } = params
 
   if (scheduledAt <= new Date()) {
     return { ok: false, message: 'يجب أن يكون موعد الحجز في المستقبل' }
   }
 
-  const windows: AvailabilityWindow[] = await prisma.availability.findMany({
+  const windows: AvailabilityWindow[] = await tx.availability.findMany({
     where: {
       isActive: true,
       ...(doctorId ? { doctorId } : { facilityId }),
@@ -147,9 +154,38 @@ export async function assertBookableSlot(params: {
     return { ok: false, message: 'الوقت المختار خارج أوقات العمل المتاحة' }
   }
 
-  if (await hasAppointmentConflict({ doctorId, facilityId, scheduledAt, duration })) {
+  if (await hasAppointmentConflict({ doctorId, facilityId, scheduledAt, duration, tx })) {
     return { ok: false, message: 'هذا الوقت محجوز بالفعل، يرجى اختيار وقت آخر' }
   }
 
   return { ok: true }
+}
+
+export async function assertBookableSlot(params: {
+  scheduledAt: Date
+  duration: number
+  doctorId?: string
+  facilityId?: string
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  return assertBookableSlotInTx(prisma, params)
+}
+
+export async function createBookedAppointment(
+  data: Prisma.AppointmentUncheckedCreateInput,
+  slotParams: {
+    scheduledAt: Date
+    duration: number
+    doctorId?: string
+    facilityId?: string
+  },
+) {
+  return prisma.$transaction(async tx => {
+    const slotCheck = await assertBookableSlotInTx(tx, slotParams)
+    if (!slotCheck.ok) {
+      throw new Error(slotCheck.message)
+    }
+    return tx.appointment.create({ data })
+  }, {
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+  })
 }

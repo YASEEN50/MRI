@@ -5,6 +5,8 @@ import { prisma, db } from '@/lib/prisma'
 import { ok, created, fromAppError, serverError } from '@/lib/api-response'
 import { getChatRoomForUser, getChatRecipientUserId } from '@/lib/chat/access'
 import { CHAT_MESSAGES_PAGE_SIZE } from '@/lib/chat/constants'
+import { isAllowedChatFileUrl } from '@/lib/chat/file-url'
+import { parsePagination } from '@/lib/api-pagination'
 import {
   isUserViewingChatRoom,
   touchChatPresence,
@@ -44,8 +46,10 @@ export async function GET(
 
     const { roomId } = await params
     const since = req.nextUrl.searchParams.get('since')
-    const page  = Number(req.nextUrl.searchParams.get('page') ?? 1)
-    const limit = Number(req.nextUrl.searchParams.get('limit') ?? CHAT_MESSAGES_PAGE_SIZE)
+    const { page, limit, skip } = parsePagination(req.nextUrl.searchParams, {
+      limit: CHAT_MESSAGES_PAGE_SIZE,
+      maxLimit: 100,
+    })
 
     const room = await getChatRoomForUser(roomId, auth.context.userId, auth.context.role)
     if (!room) return ok({ error: true, message: 'الغرفة غير موجودة' })
@@ -85,7 +89,6 @@ export async function GET(
       return ok(messages.map(mapMessage))
     }
 
-    const skip = (page - 1) * limit
     const [messages, total] = await Promise.all([
       db.chatMessage.findMany({
         where:   { roomId, deletedAt: null },
@@ -125,6 +128,10 @@ export async function POST(
     const room = await getChatRoomForUser(roomId, auth.context.userId, auth.context.role)
     if (!room || room.status !== 'ACTIVE') {
       return ok({ error: true, message: 'الغرفة غير متاحة' })
+    }
+
+    if (parsed.data.fileUrl && !isAllowedChatFileUrl(parsed.data.fileUrl)) {
+      return ok({ error: true, message: 'رابط المرفق غير مسموح — استخدم رفع الملف من المحادثة' })
     }
 
     const [message] = await prisma.$transaction([

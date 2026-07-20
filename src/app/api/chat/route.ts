@@ -3,10 +3,11 @@ import { NextRequest } from 'next/server'
 import { requireAuth, requirePatientAuth } from '@/infrastructure/auth/providers/role-guard'
 import { prisma, db } from '@/lib/prisma'
 import { ok, created, fromAppError, serverError } from '@/lib/api-response'
-import { Role } from '@prisma/client'
+import { ApprovalStatus, AppointmentStatus } from '@prisma/client'
 import { z } from 'zod'
 import { listChatRoomsForUser, type ChatRoomFilter } from '@/lib/chat/list-rooms'
 import { ensureClientProfile } from '@/lib/client/patient-access'
+import { assertPatientCanChatWithDoctor } from '@/lib/chat/access'
 
 const CreateRoomSchema = z.object({
   doctorId:      z.string().uuid(),
@@ -40,7 +41,37 @@ export async function POST(req: NextRequest) {
     const parsed = CreateRoomSchema.safeParse(body)
     if (!parsed.success) return ok({ error: true, message: 'بيانات غير صحيحة' })
 
+    const doctor = await prisma.doctorProfile.findFirst({
+      where: {
+        id: parsed.data.doctorId,
+        deletedAt: null,
+        approvalStatus: ApprovalStatus.APPROVED,
+        user: { isActive: true },
+      },
+      select: { id: true },
+    })
+    if (!doctor) return ok({ error: true, message: 'الطبيب غير متاح' })
+
     const profile = await ensureClientProfile(auth.context.userId)
+
+    if (parsed.data.appointmentId) {
+      const appt = await prisma.appointment.findFirst({
+        where: {
+          id: parsed.data.appointmentId,
+          clientId: auth.context.userId,
+          doctorId: doctor.id,
+          deletedAt: null,
+          status: { in: [AppointmentStatus.CONFIRMED, AppointmentStatus.COMPLETED] },
+        },
+        select: { id: true },
+      })
+      if (!appt) return ok({ error: true, message: 'الموعد غير صالح لهذا الطبيب' })
+    } else {
+      const allowed = await assertPatientCanChatWithDoctor(profile.id, doctor.id)
+      if (!allowed) {
+        return ok({ error: true, message: 'لا يمكن فتح محادثة بدون موعد أو استشارة مع هذا الطبيب' })
+      }
+    }
 
     const existing = await db.chatRoom.findFirst({
       where: {

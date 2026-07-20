@@ -8,9 +8,10 @@ export function getJitsiServerUrl(): string {
   return (process.env.JITSI_SERVER_URL ?? 'https://meet.jit.si').replace(/\/$/, '')
 }
 
+import { getSecureVideoRoomName } from '@/lib/video/room-name'
+
 export function getVideoRoomName(appointmentId: string): string {
-  const slug = appointmentId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 24)
-  return `mriConsult${slug}`
+  return getSecureVideoRoomName('mriConsult', appointmentId)
 }
 
 export function getVideoJoinPath(appointmentId: string): string {
@@ -68,7 +69,7 @@ export function appointmentVideoFields(apt: {
 const JITSI_HASH_BASE = [
   'config.prejoinPageEnabled=true',
   'config.disableDeepLinking=true',
-  'config.enableLobby=false',
+  'config.enableLobby=true',
   'config.enableWelcomePage=false',
   'config.startWithAudioMuted=false',
   'config.startWithVideoMuted=false',
@@ -105,7 +106,7 @@ export function getJitsiClientConfig(returnUrl?: string) {
       prejoinPageEnabled: true,
       disableDeepLinking: true,
       enableWelcomePage: false,
-      enableLobby: false,
+      enableLobby: true,
       startWithAudioMuted: false,
       startWithVideoMuted: false,
       disableThirdPartyRequests: true,
