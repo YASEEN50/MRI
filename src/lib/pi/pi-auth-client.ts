@@ -199,6 +199,7 @@ async function exchangePiTokenForSession(
   const target = session?.user ? resolvePostLoginPath(session) : redirectPath
 
   if (typeof window !== 'undefined') {
+    await requestCookieAccess()
     window.location.href = inner.mfaRequired ? '/login/mfa' : target
   }
 
@@ -222,7 +223,9 @@ function isPiEntryPath(): boolean {
 export async function runPiAuthOnLoad(): Promise<'redirecting' | 'idle'> {
   if (!isPiEntryPath()) return 'idle'
   if (shouldSkipPiAutoLogin()) return 'idle'
-  if (shouldBlockPiDashboardRedirect()) return 'idle'
+  if (shouldBlockPiDashboardRedirect()) {
+    return 'idle'
+  }
   try {
     await requestPiCookieAccess()
     const res = await fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
@@ -230,7 +233,13 @@ export async function runPiAuthOnLoad(): Promise<'redirecting' | 'idle'> {
     if (session?.user) {
       clearPiSessionRedirectLoop()
       if (typeof window !== 'undefined') {
-        window.location.href = resolvePostLoginPath(session)
+        const p = window.location.pathname
+        const dest =
+          p === '/login' || p === '/pi-login.html'
+            ? '/pi-app.html'
+            : resolvePostLoginPath(session)
+        await requestPiCookieAccess()
+        window.location.href = dest
       }
       return 'redirecting'
     }

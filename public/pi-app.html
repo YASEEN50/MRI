@@ -78,6 +78,17 @@
       window.PiAuth.signOut('/pi-app.html')
     })
 
+    document.querySelectorAll('#menu a[href^="/"]').forEach(function (link) {
+      link.addEventListener('click', function (e) {
+        var href = link.getAttribute('href')
+        if (!href || href === '/pi-app.html') return
+        e.preventDefault()
+        requestCookieAccess().then(function () {
+          window.location.href = href
+        })
+      })
+    })
+
     document.getElementById('piBtn').addEventListener('click', function () {
       var btn = document.getElementById('piBtn')
       btn.disabled = true
