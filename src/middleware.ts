@@ -61,21 +61,6 @@ function isProtectedPath(pathname: string): boolean {
   return prefixes.some(p => pathname === p || pathname.startsWith(`${p}/`))
 }
 
-/** Re-validates session via NextAuth (runs JWT callback + DB isActive check). */
-async function isSessionActive(req: NextRequest): Promise<boolean> {
-  try {
-    const res = await fetch(new URL('/api/auth/session', req.url), {
-      headers: { cookie: req.headers.get('cookie') ?? '' },
-      cache: 'no-store',
-    })
-    if (!res.ok) return false
-    const data = (await res.json()) as { user?: { id?: string } }
-    return !!data?.user?.id
-  } catch {
-    return false
-  }
-}
-
 const authMiddleware = withAuth(
   function middleware(req: NextRequestWithAuth) {
     const { pathname } = req.nextUrl
@@ -199,7 +184,9 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
     let res: NextResponse
     if (isProtectedPath(req.nextUrl.pathname)) {
       const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
-      if (token && !(await isSessionActive(req))) {
+      // JWT flag set when session is refreshed; avoid internal /api/auth/session fetch
+      // in Edge middleware — it fails unreliably on Vercel and blocks valid logins.
+      if (token?.isActive === false) {
         return NextResponse.redirect(new URL('/login?error=AccountSuspended', req.url))
       }
       res = authMiddleware(req as NextRequestWithAuth, event) as NextResponse
