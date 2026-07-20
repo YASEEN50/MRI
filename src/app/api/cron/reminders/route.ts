@@ -1,13 +1,16 @@
 // src/app/api/cron/reminders/route.ts
-// يُستدعى كل 5 دقائق من Vercel Cron
-// vercel.json: { "crons": [{ "path": "/api/cron/reminders", "schedule": "*/5 * * * *" }] }
+// vercel.json: { "crons": [{ "path": "/api/cron/reminders", "schedule": "0 8 * * *" }] }
+// Hobby plan: cron may run once per day only.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { processDueReminders } from '@/lib/cron/reminders.service'
+import {
+  expireStaleInstantConsults,
+  finalizeExpiredInstantSessions,
+} from '@/lib/instant-consult/service'
 import { requireEnv } from '@/lib/env'
 
 export async function GET(req: NextRequest) {
-  // حماية: يجب أن يأتي الطلب من Vercel Cron أو بـ secret
   const authHeader = req.headers.get('authorization')
   const secret     = requireEnv('CRON_SECRET')
 
@@ -17,8 +20,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const result = await processDueReminders()
-    console.log('[Cron/Reminders]', result)
-    return NextResponse.json({ success: true, ...result })
+    await expireStaleInstantConsults()
+    const completedSessions = await finalizeExpiredInstantSessions()
+    console.log('[Cron/Reminders]', result, { completedSessions })
+    return NextResponse.json({ success: true, ...result, completedSessions })
   } catch (err) {
     console.error('[Cron/Reminders] Error:', err)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
