@@ -25,7 +25,7 @@ interface FeedNotification {
 }
 
 export function usePiPushNotifications() {
-  const { status } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const [inPi, setInPi] = useState(false)
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default')
@@ -62,14 +62,14 @@ export function usePiPushNotifications() {
         notification.onclick = () => {
           window.focus()
           notification.close()
-          const href = notificationActionPath(n.type, n.data)
+          const href = notificationActionPath(n.type, n.data, session?.user?.role)
           if (href) router.push(href)
         }
       } catch {
         /* Pi Browser may block in some contexts */
       }
     },
-    [router],
+    [router, session?.user?.role],
   )
 
   const poll = useCallback(async () => {

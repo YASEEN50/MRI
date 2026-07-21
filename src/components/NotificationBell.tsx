@@ -40,6 +40,13 @@ const TYPE_ICONS: Record<string, string> = {
   REFERRAL_ACCEPTED:          '✅',
   REFERRAL_REWARD:            '🎁',
   REFERRAL_CANCELLED:         '↩️',
+  INSTANT_CONSULT_REQUEST:    '⚡',
+  INSTANT_CONSULT_ACCEPTED:   '✅',
+  INSTANT_CONSULT_PENDING:    '⏳',
+  INSTANT_CONSULT_REJECTED:   '❌',
+  INSTANT_CONSULT_REFUNDED:   '↩️',
+  INSTANT_CONSULT_CANCELLED:  '❌',
+  CHAT_CLOSED:                '🔚',
   DEFAULT:                    '🔔',
 }
 
@@ -100,7 +107,7 @@ export default function NotificationBell() {
 
   async function handleNotificationClick(n: Notification) {
     if (!n.isRead) await markRead(n.id)
-    const href = notificationActionPath(n.type, n.data)
+    const href = notificationActionPath(n.type, n.data, session?.user?.role)
     if (href) {
       setOpen(false)
       router.push(href)
@@ -142,8 +149,8 @@ export default function NotificationBell() {
               notifications.slice(0, 15).map(n => (
                 <div key={n.id}
                   onClick={() => void handleNotificationClick(n)}
-                  className={`px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-all cursor-pointer group
-                    ${!n.isRead ? 'bg-primary/5' : ''}`}>
+                  className={`px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-all group
+                    ${!n.isRead ? 'bg-primary/5' : ''} ${notificationActionPath(n.type, n.data, session?.user?.role) ? 'cursor-pointer' : 'cursor-default opacity-90'}`}>
                   <div className="flex items-start gap-3">
                     <span className="text-base flex-shrink-0">{TYPE_ICONS[n.type] ?? TYPE_ICONS.DEFAULT}</span>
                     <div className="flex-1 min-w-0">

@@ -96,6 +96,7 @@ export async function POST(
       request.client.userId,
       id,
       `د. ${doctor.firstName} ${doctor.lastName}`,
+      chatRoomId,
     )
 
     await settleInstantConsultOnAccept(id)

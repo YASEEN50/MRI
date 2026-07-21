@@ -1,5 +1,6 @@
 import { InstantConsultStatus } from '@prisma/client'
 import { prisma, db } from '@/lib/prisma'
+import { getChatPath } from '@/lib/chat/paths'
 import { doctorProfileApprovedWhere } from '@/lib/premio/active-premio'
 import { INSTANT_CONSULT_ACCEPT_TIMEOUT_SEC } from '@/lib/instant-consult/constants'
 import { refundInstantConsultPayment } from '@/lib/payment/instant-consult-escrow'
@@ -155,7 +156,7 @@ export async function notifyDoctorsBroadcast(
         title: '⚡ طلب استشارة فورية (بث)',
         body: `${clientName} يطلب استشارة في ${specialization} — أول من يقبل يفوز (${INSTANT_CONSULT_ACCEPT_TIMEOUT_SEC}ث)`,
         type: 'INSTANT_CONSULT_REQUEST',
-        data: { requestId, broadcast: true },
+        data: { requestId, broadcast: true, actionPath: '/dashboard/doctor/instant-consult' },
       },
     })
   }
@@ -168,19 +169,27 @@ export async function notifyDoctorInstantRequest(doctorUserId: string, requestId
       title: '⚡ طلب استشارة فورية',
       body: `${clientName} يطلب استشارة فورية — لديك ${INSTANT_CONSULT_ACCEPT_TIMEOUT_SEC} ثانية للقبول`,
       type: 'INSTANT_CONSULT_REQUEST',
-      data: { requestId },
+      data: { requestId, actionPath: '/dashboard/doctor/instant-consult' },
     },
   })
 }
 
-export async function notifyClientInstantAccepted(clientUserId: string, requestId: string, doctorName: string) {
+export async function notifyClientInstantAccepted(
+  clientUserId: string,
+  requestId: string,
+  doctorName: string,
+  chatRoomId?: string,
+) {
   await prisma.notification.create({
     data: {
       userId: clientUserId,
       title: '✅ تم قبول الاستشارة',
       body: `${doctorName} قبل طلبك — افتح المحادثة الآن`,
       type: 'INSTANT_CONSULT_ACCEPTED',
-      data: { requestId },
+      data: {
+        requestId,
+        ...(chatRoomId ? { chatRoomId, actionPath: getChatPath('CLIENT', chatRoomId) } : {}),
+      },
     },
   })
 }
