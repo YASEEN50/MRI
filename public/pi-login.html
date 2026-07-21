@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>تسجيل الدخول — MRI</title>
-  <link rel="stylesheet" href="/pi-login.css?v=3" />
+  <link rel="stylesheet" href="/pi-login.css?v=4" />
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
   <script src="/pi-auth.js"></script>
 </head>
@@ -35,6 +35,10 @@
         <span>π</span> تسجيل الدخول بـ Pi
       </button>
 
+      <button id="continueBtn" type="button" class="pi-auth-btn pi-auth-btn-outline" style="display:none;margin-top:10px">
+        متابعة إلى لوحة التحكم
+      </button>
+
       <div class="pi-auth-trust">
         <span>🔒 Pi فقط</span>
         <span>🟣 Pi Network</span>
@@ -44,18 +48,20 @@
 
     <p id="err" class="pi-auth-error"></p>
     <a class="pi-auth-footer-link" href="/register">ليس لديك حساب؟ <strong style="color:var(--pi-accent)">إنشاء حساب بـ Pi</strong></a>
-    <a class="pi-auth-back pi-auth-text-center" href="/" style="display:block">← العودة للرئيسية</a>
+    <a class="pi-auth-back pi-auth-text-center" href="/pi-app.html" style="display:block;margin-top:8px">← العودة للقائمة الرئيسية</a>
   </div>
 
   <script>
   (function () {
     var btn = document.getElementById('loginBtn')
+    var continueBtn = document.getElementById('continueBtn')
     var errEl = document.getElementById('err')
     var hintEl = document.getElementById('hint')
+    var pendingPath = null
 
-    function setLoading() {
+    function setLoading(msg) {
       hintEl.className = 'pi-auth-hint loading pi-auth-status'
-      hintEl.innerHTML = '<span class="pi-auth-spinner"></span> جاري تسجيل الدخول بـ Pi...'
+      hintEl.innerHTML = '<span class="pi-auth-spinner"></span> ' + (msg || 'جاري تسجيل الدخول بـ Pi...')
     }
 
     function fail(msg) {
@@ -65,6 +71,17 @@
       hintEl.className = 'pi-auth-hint'
       hintEl.textContent = 'اضغط الزر ووافق على طلب المصادقة في Pi Network'
     }
+
+    function showContinue(path) {
+      pendingPath = path
+      continueBtn.style.display = 'block'
+      hintEl.className = 'pi-auth-hint'
+      hintEl.textContent = 'لديك جلسة نشطة — يمكنك المتابعة مباشرة'
+    }
+
+    continueBtn.addEventListener('click', function () {
+      if (pendingPath) window.PiAuth.navigateToApp(pendingPath)
+    })
 
     btn.addEventListener('click', function () {
       errEl.textContent = ''
@@ -78,9 +95,16 @@
 
     window.PiAuth.runOnLoad().then(function (result) {
       if (result && result.mode === 'redirecting') {
-        setLoading()
-        hintEl.innerHTML = '<span class="pi-auth-spinner"></span> جلسة نشطة — جاري الدخول...'
+        setLoading('جلسة نشطة — جاري الدخول...')
+        return
       }
+      return fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
+        .then(function (r) { return r.json() })
+        .then(function (s) {
+          if (s && s.user) {
+            showContinue(window.PiAuth.resolvePostLoginPath(s))
+          }
+        })
     }).catch(function () {
       hintEl.className = 'pi-auth-hint'
       hintEl.textContent = 'اضغط الزر ووافق على طلب المصادقة في Pi Network'

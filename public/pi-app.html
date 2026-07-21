@@ -80,7 +80,6 @@
 
     document.querySelector('a[href="/dashboard"]').addEventListener('click', function (e) {
       e.preventDefault()
-      if (window.PiAuth.shouldSkipAuto()) return
       var access = document.requestStorageAccess
         ? document.requestStorageAccess().catch(function () {})
         : Promise.resolve()
@@ -90,13 +89,13 @@
         .then(function (r) { return r.json() })
         .then(function (s) {
           if (!s || !s.user) {
-            window.location.href = '/login'
+            window.PiAuth.navigateToApp('/login')
             return
           }
-          window.location.href = window.PiAuth.resolvePostLoginPath(s)
+          window.PiAuth.navigateToApp(window.PiAuth.resolvePostLoginPath(s))
         })
         .catch(function () {
-          window.location.href = '/dashboard'
+          window.PiAuth.navigateToApp('/dashboard')
         })
     })
 

@@ -7,9 +7,7 @@ import type { Session } from 'next-auth'
 import type { Role } from '@prisma/client'
 import {
   isPiBrowser,
-  markPiSessionRedirect,
   requestPiCookieAccess,
-  shouldSkipPiAutoLogin,
 } from '@/lib/pi/pi-auth-client'
 
 type Options = {
@@ -31,7 +29,7 @@ async function resolvePiSession(
 ): Promise<Session | null> {
   await requestPiCookieAccess()
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 8; i++) {
     const refreshed = await update()
     if (refreshed?.user) return refreshed
 
@@ -77,7 +75,7 @@ export function useRequireAuth(options: Options = {}) {
         return
       }
 
-      if (isPiBrowser() && !shouldSkipPiAutoLogin()) {
+      if (isPiBrowser()) {
         const resolved = await resolvePiSession(update)
         if (!active) return
 
@@ -93,7 +91,6 @@ export function useRequireAuth(options: Options = {}) {
       }
 
       if (active && status === 'unauthenticated' && !fallbackSession?.user) {
-        markPiSessionRedirect()
         router.replace(redirectTo)
         return
       }

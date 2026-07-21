@@ -338,20 +338,24 @@ window.PiAuth = (function () {
     if (loggedOutParam) markSkipAuto()
 
     if (shouldSkipAuto()) {
-      return requestCookieAccess()
-        .then(function () {
-          return fetch('/api/auth/pi-logout', {
-            method: 'POST',
-            credentials: 'include',
-            cache: 'no-store',
+      return readSession().then(function (s) {
+        if (s && s.user) {
+          clearSkipAuto()
+          clearSessionRedirectLoop()
+          window.location.href = resolvePostLoginPath(s)
+          return { mode: 'redirecting' }
+        }
+        return requestCookieAccess()
+          .then(function () {
+            return fetch('/api/auth/pi-logout', {
+              method: 'POST',
+              credentials: 'include',
+              cache: 'no-store',
+            })
           })
-        })
-        .then(function () { return { mode: 'idle' } })
-        .catch(function () { return { mode: 'idle' } })
-    }
-
-    if (shouldBlockDashboardRedirect()) {
-      return Promise.resolve({ mode: 'idle' })
+          .then(function () { return { mode: 'idle' } })
+          .catch(function () { return { mode: 'idle' } })
+      })
     }
 
     return requestCookieAccess()
@@ -361,11 +365,6 @@ window.PiAuth = (function () {
       .then(function (r) { return r.json() })
       .then(function (s) {
         if (s && s.user) {
-          var loopCount = parseInt(sessionStorage.getItem(LOOP_KEY) || '0', 10)
-          var onLogin = location.pathname === '/login' || location.pathname === '/pi-login.html'
-          if (onLogin && loopCount >= 1) {
-            return { mode: 'idle' }
-          }
           clearSkipAuto()
           clearSessionRedirectLoop()
           window.location.href = resolvePostLoginPath(s)
@@ -437,6 +436,14 @@ window.PiAuth = (function () {
       })
   }
 
+  function navigateToApp(path) {
+    clearSkipAuto()
+    clearSessionRedirectLoop()
+    requestCookieAccess().then(function () {
+      window.location.href = path
+    })
+  }
+
   return {
     signIn: signIn,
     signUp: signUp,
@@ -446,6 +453,8 @@ window.PiAuth = (function () {
     shouldSkipAuto: shouldSkipAuto,
     markSkipAuto: markSkipAuto,
     clearSkipAuto: clearSkipAuto,
+    clearSessionRedirectLoop: clearSessionRedirectLoop,
+    navigateToApp: navigateToApp,
     signOut: signOut,
     resolvePostLoginPath: resolvePostLoginPath,
   }
