@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { buildNavigationTrail } from '@/lib/navigation/breadcrumbs'
 
@@ -12,6 +12,7 @@ interface PageBackNavProps {
 export default function PageBackNav({ locale }: PageBackNavProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const { data: session } = useSession()
   const trail = buildNavigationTrail(pathname, locale, session?.user?.role, {
     roomId: searchParams.get('room'),
@@ -21,16 +22,25 @@ export default function PageBackNav({ locale }: PageBackNavProps) {
 
   const { backHref, backLabel, crumbs } = trail
 
+  function handleBack() {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back()
+      return
+    }
+    router.push(backHref)
+  }
+
   return (
     <div className="border-b border-white/[0.04] bg-background/70">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-        <Link
-          href={backHref}
+        <button
+          type="button"
+          onClick={handleBack}
           className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white bg-white/5 border border-white/10 hover:bg-primary/15 hover:border-primary/30 hover:text-accent transition-all shrink-0 w-fit"
         >
           <span aria-hidden className="text-base leading-none">←</span>
           <span>{backLabel ?? (locale === 'ar' ? 'رجوع' : 'Back')}</span>
-        </Link>
+        </button>
 
         <nav
           className="flex items-center flex-wrap gap-x-1.5 gap-y-1 text-xs sm:text-sm min-w-0"

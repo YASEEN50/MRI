@@ -1,8 +1,10 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import { SessionProvider } from '@/components/common/SessionProvider'
+import ScrollRestoration from '@/components/common/ScrollRestoration'
 import { PiAuthProvider } from '@/components/auth/PiAuthProvider'
 import { PiSdkScript } from '@/components/auth/PiSdkScript'
 import { PiPushProvider } from '@/components/notifications/PiPushProvider'
@@ -50,6 +52,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <NextIntlClientProvider messages={messages}>
           <SessionProvider>
             <PiAuthProvider>
+              <Suspense fallback={null}>
+                <ScrollRestoration />
+              </Suspense>
               {children}
               <PiPushProvider />
             </PiAuthProvider>
