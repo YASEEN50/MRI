@@ -1,7 +1,7 @@
 // src/middleware.ts — Edge-safe (no @prisma/client imports)
-import { withAuth, NextRequestWithAuth } from 'next-auth/middleware'
 import { NextResponse } from 'next/server'
 import type { NextFetchEvent, NextRequest } from 'next/server'
+import type { JWT } from 'next-auth/jwt'
 import { readMiddlewareAuthToken } from '@/lib/auth/middleware-token'
 
 const PATIENT_CAPABLE_ROLES = new Set(['CLIENT', 'OWNER', 'ADMIN'])
@@ -61,97 +61,94 @@ function isProtectedPath(pathname: string): boolean {
   return prefixes.some(p => pathname === p || pathname.startsWith(`${p}/`))
 }
 
-const authMiddleware = withAuth(
-  function middleware(req: NextRequestWithAuth) {
-    const { pathname } = req.nextUrl
-    const token = req.nextauth.token
-    if (!token) return NextResponse.redirect(new URL('/login', req.url))
+/** Role / MFA / onboarding checks for protected routes (token from readMiddlewareAuthToken). */
+function authorizeProtectedRoute(req: NextRequest, token: JWT | null): NextResponse {
+  const { pathname } = req.nextUrl
+  if (!token) return NextResponse.redirect(new URL('/login', req.url))
 
-    const role = token.role as string
-    const approvalStatus = token.approvalStatus as string | null | undefined
-    const isProfileComplete = token.isProfileComplete as boolean
-    const mfaEnabled = token.mfaEnabled === true
-    const mfaVerified = token.mfaVerified === true
-    const isPrivileged = role === Role.ADMIN || role === Role.OWNER
+  const role = token.role as string
+  const approvalStatus = token.approvalStatus as string | null | undefined
+  const isProfileComplete = token.isProfileComplete as boolean
+  const mfaEnabled = token.mfaEnabled === true
+  const mfaVerified = token.mfaVerified === true
+  const isPrivileged = role === Role.ADMIN || role === Role.OWNER
 
-    const isMfaSetupPath = pathname.startsWith('/admin/security')
+  const isMfaSetupPath = pathname.startsWith('/admin/security')
 
-    if (isPrivileged && !isMfaSetupPath && (pathname.startsWith('/admin') || pathname.startsWith('/owner'))) {
-      if (!mfaEnabled) {
-        return NextResponse.redirect(new URL('/admin/security/mfa', req.url))
-      }
-      if (!mfaVerified) {
-        return NextResponse.redirect(new URL('/login/mfa', req.url))
-      }
+  if (isPrivileged && !isMfaSetupPath && (pathname.startsWith('/admin') || pathname.startsWith('/owner'))) {
+    if (!mfaEnabled) {
+      return NextResponse.redirect(new URL('/admin/security/mfa', req.url))
     }
+    if (!mfaVerified) {
+      return NextResponse.redirect(new URL('/login/mfa', req.url))
+    }
+  }
 
-    if (pathname.startsWith('/owner') && role !== Role.OWNER) {
+  if (pathname.startsWith('/owner') && role !== Role.OWNER) {
+    return NextResponse.redirect(new URL('/unauthorized', req.url))
+  }
+
+  if (pathname.startsWith('/admin') && role !== Role.ADMIN && role !== Role.OWNER) {
+    return NextResponse.redirect(new URL('/unauthorized', req.url))
+  }
+
+  if (pathname.startsWith('/dashboard') && role === Role.OWNER) {
+    const ownerPatientDash = pathname.startsWith('/dashboard/client')
+    if (!pathname.startsWith('/dashboard/admin') && !ownerPatientDash) {
+      return NextResponse.redirect(new URL('/owner', req.url))
+    }
+  }
+
+  const isExempt = PROFILE_EXEMPT_PATHS.some(p => pathname.startsWith(p))
+  if (!isProfileComplete && !isExempt) {
+    if (role === Role.DOCTOR) {
+      return NextResponse.redirect(new URL('/onboarding/doctor', req.url))
+    }
+    if (role === Role.FACILITY) {
+      return NextResponse.redirect(new URL('/onboarding/facility', req.url))
+    }
+    if (role === Role.CLIENT) {
+      return NextResponse.redirect(new URL('/onboarding/client', req.url))
+    }
+    return NextResponse.redirect(new URL('/select-role', req.url))
+  }
+
+  const isOnboarding = ONBOARDING_PATHS.some(p => pathname.startsWith(p))
+  if (isProfileComplete && isOnboarding) {
+    return NextResponse.redirect(new URL('/dashboard', req.url))
+  }
+
+  if (pathname.startsWith('/doctor') || pathname.startsWith('/dashboard/doctor')) {
+    if (role !== Role.DOCTOR) return NextResponse.redirect(new URL('/unauthorized', req.url))
+    const doctorPendingOk =
+      pathname.startsWith('/doctor/pending') || pathname.startsWith('/doctor/verify')
+    if (approvalStatus !== ApprovalStatus.APPROVED && !doctorPendingOk) {
+      return NextResponse.redirect(new URL('/doctor/pending', req.url))
+    }
+  }
+
+  if (pathname.startsWith('/facility') || pathname.startsWith('/dashboard/facility')) {
+    if (role !== Role.FACILITY) return NextResponse.redirect(new URL('/unauthorized', req.url))
+    const facilityPendingOk = pathname.startsWith('/facility/pending') || pathname.startsWith('/facility/verify')
+    if (approvalStatus !== ApprovalStatus.APPROVED && !facilityPendingOk) {
+      return NextResponse.redirect(new URL('/facility/pending', req.url))
+    }
+  }
+
+  if (pathname.startsWith('/dashboard/admin')) {
+    if (role !== Role.ADMIN && role !== Role.OWNER) {
       return NextResponse.redirect(new URL('/unauthorized', req.url))
     }
+  }
 
-    if (pathname.startsWith('/admin') && role !== Role.ADMIN && role !== Role.OWNER) {
-      return NextResponse.redirect(new URL('/unauthorized', req.url))
-    }
+  if (pathname.startsWith('/dashboard/client') && !PATIENT_CAPABLE_ROLES.has(role as string)) {
+    return NextResponse.redirect(new URL('/unauthorized', req.url))
+  }
 
-    if (pathname.startsWith('/dashboard') && role === Role.OWNER) {
-      const ownerPatientDash = pathname.startsWith('/dashboard/client')
-      if (!pathname.startsWith('/dashboard/admin') && !ownerPatientDash) {
-        return NextResponse.redirect(new URL('/owner', req.url))
-      }
-    }
+  return NextResponse.next()
+}
 
-    const isExempt = PROFILE_EXEMPT_PATHS.some(p => pathname.startsWith(p))
-    if (!isProfileComplete && !isExempt) {
-      if (role === Role.DOCTOR) {
-        return NextResponse.redirect(new URL('/onboarding/doctor', req.url))
-      }
-      if (role === Role.FACILITY) {
-        return NextResponse.redirect(new URL('/onboarding/facility', req.url))
-      }
-      if (role === Role.CLIENT) {
-        return NextResponse.redirect(new URL('/onboarding/client', req.url))
-      }
-      return NextResponse.redirect(new URL('/select-role', req.url))
-    }
-
-    const isOnboarding = ONBOARDING_PATHS.some(p => pathname.startsWith(p))
-    if (isProfileComplete && isOnboarding) {
-      return NextResponse.redirect(new URL('/dashboard', req.url))
-    }
-
-    if (pathname.startsWith('/doctor') || pathname.startsWith('/dashboard/doctor')) {
-      if (role !== Role.DOCTOR) return NextResponse.redirect(new URL('/unauthorized', req.url))
-      const doctorPendingOk =
-        pathname.startsWith('/doctor/pending') || pathname.startsWith('/doctor/verify')
-      if (approvalStatus !== ApprovalStatus.APPROVED && !doctorPendingOk) {
-        return NextResponse.redirect(new URL('/doctor/pending', req.url))
-      }
-    }
-
-    if (pathname.startsWith('/facility') || pathname.startsWith('/dashboard/facility')) {
-      if (role !== Role.FACILITY) return NextResponse.redirect(new URL('/unauthorized', req.url))
-      const facilityPendingOk = pathname.startsWith('/facility/pending') || pathname.startsWith('/facility/verify')
-      if (approvalStatus !== ApprovalStatus.APPROVED && !facilityPendingOk) {
-        return NextResponse.redirect(new URL('/facility/pending', req.url))
-      }
-    }
-
-    if (pathname.startsWith('/dashboard/admin')) {
-      if (role !== Role.ADMIN && role !== Role.OWNER) {
-        return NextResponse.redirect(new URL('/unauthorized', req.url))
-      }
-    }
-
-    if (pathname.startsWith('/dashboard/client') && !PATIENT_CAPABLE_ROLES.has(role as string)) {
-      return NextResponse.redirect(new URL('/unauthorized', req.url))
-    }
-
-    return NextResponse.next()
-  },
-  { callbacks: { authorized: ({ token }) => !!token } },
-)
-
-export default async function middleware(req: NextRequest, event: NextFetchEvent) {
+export default async function middleware(req: NextRequest, _event: NextFetchEvent) {
   try {
     const piRewrite = piStaticRewrite(req)
     if (piRewrite) return piRewrite
@@ -188,13 +185,13 @@ export default async function middleware(req: NextRequest, event: NextFetchEvent
         return NextResponse.redirect(new URL('/login?error=AccountSuspended', req.url))
       }
       if (token) {
-        res = authMiddleware(req as NextRequestWithAuth, event) as NextResponse
+        res = authorizeProtectedRoute(req, token)
       } else if (isPiRequest(req)) {
         // Pi iframe: session cookie may reach fetch APIs but not document navigation.
         // Allow shell to load; client SessionProvider + APIs enforce auth.
         res = applyPiWebViewHeaders(NextResponse.next())
       } else {
-        res = authMiddleware(req as NextRequestWithAuth, event) as NextResponse
+        res = authorizeProtectedRoute(req, null)
       }
     } else {
       res = NextResponse.next()
