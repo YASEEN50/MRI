@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 import Navbar from '@/components/common/Navbar'
+import CopyableText from '@/components/common/CopyableText'
 import Link from 'next/link'
 import Image from 'next/image'
 import { CountryCitySelect } from '@/components/geo/CountryCitySelect'
@@ -540,9 +541,9 @@ export default function ProfilePage() {
                   <span className="text-slate-400">الدور</span>
                   <span className="text-emerald-400">{roleLabel[role] ?? role}</span>
                 </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-slate-400">معرف الحساب</span>
-                  <span className="text-white font-mono text-xs">{session.user.id.slice(0, 16)}...</span>
+                <div className="flex justify-between items-start gap-3 py-2">
+                  <span className="text-slate-400 shrink-0">معرف الحساب</span>
+                  <CopyableText value={session.user.id} />
                 </div>
               </div>
             </div>
