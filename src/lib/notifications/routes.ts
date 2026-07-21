@@ -6,6 +6,11 @@ function dashboardAppointmentsPath(role?: string): string {
   return '/dashboard/client/appointments'
 }
 
+function adminVerificationPath(role?: string): string {
+  if (role === 'OWNER') return '/owner'
+  return '/dashboard/admin/verification'
+}
+
 function instantConsultIdFromData(d: Record<string, unknown>): string | null {
   if (typeof d.requestId === 'string') return d.requestId
   if (typeof d.instantConsultId === 'string') return d.instantConsultId
@@ -70,8 +75,8 @@ export function notificationActionPath(
     return dashboardAppointmentsPath(role)
   }
 
-  if (type === 'PAYMENT_COMPLETED') {
-    return dashboardAppointmentsPath(role)
+  if (type === 'PAYMENT_COMPLETED' || type === 'DOCTOR_PAYMENT_SETTLED') {
+    return role === 'DOCTOR' ? '/dashboard/doctor/transactions' : dashboardAppointmentsPath(role)
   }
 
   if (type === 'CHAT_MESSAGE' || type === 'CHAT_CLOSED') {
@@ -106,9 +111,22 @@ export function notificationActionPath(
   if (
     type === 'DOCTOR_PENDING_REVIEW' ||
     type === 'VERIFICATION_RISK_ALERT' ||
-    type === 'PUBLICATION_PENDING_REVIEW'
+    type === 'PUBLICATION_PENDING_REVIEW' ||
+    type === 'PAID_AD_PENDING_REVIEW'
   ) {
-    return '/dashboard/admin/verification'
+    return adminVerificationPath(role)
+  }
+
+  if (type === 'PUBLICATION_SUBMITTED') {
+    return role === 'DOCTOR' ? '/dashboard/doctor/publications' : adminVerificationPath(role)
+  }
+
+  if (type === 'VERIFICATION_SUBMITTED') {
+    return role === 'DOCTOR' ? '/profile' : adminVerificationPath(role)
+  }
+
+  if (type === 'PAID_AD_SUBMITTED') {
+    return '/dashboard/client/appointments'
   }
 
   if (type === 'DOCTOR_APPROVED' || type === 'AI_APPROVED' || type === 'VERIFIED') {
@@ -121,12 +139,32 @@ export function notificationActionPath(
     return '/doctor/pending'
   }
 
+  if (type === 'FACILITY_REJECTED') {
+    return '/dashboard/facility/pending'
+  }
+
+  if (type === 'ACCOUNT_SUSPENDED') {
+    return '/login'
+  }
+
+  if (type === 'ACCOUNT_RESTORED') {
+    return dashboardAppointmentsPath(role)
+  }
+
+  if (type === 'ADMIN_ASSIGNED' || type === 'PERMISSIONS_UPDATED') {
+    return role === 'OWNER' ? '/owner' : '/dashboard/admin/verification'
+  }
+
+  if (type === 'TASK_ASSIGNED') {
+    return '/dashboard/admin/pending'
+  }
+
   if (type === 'PREMIO_ACTIVATED' || type === 'PREMIO_GRANTED') {
-    return '/dashboard/client/appointments'
+    return role === 'DOCTOR' ? '/dashboard/doctor/premio' : '/dashboard/client/appointments'
   }
 
   if (type === 'WITHDRAWAL_REQUESTED' || type === 'WITHDRAWAL_COMPLETED' || type === 'WITHDRAWAL_REJECTED') {
-    return '/dashboard/doctor/transactions'
+    return '/dashboard/doctor/withdrawals'
   }
 
   return null

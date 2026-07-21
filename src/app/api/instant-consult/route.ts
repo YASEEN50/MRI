@@ -8,6 +8,7 @@ import { canActAsPatient, ensureClientProfile, getClientProfileId } from '@/lib/
 import {
   doctorHasActiveInstantSession,
   expireStaleInstantConsults,
+  finalizeExpiredInstantSessions,
   listAvailableInstantDoctors,
 } from '@/lib/instant-consult/service'
 
@@ -79,6 +80,7 @@ export async function GET() {
     if (!auth.success) return fromAppError(auth.error)
 
     await expireStaleInstantConsults()
+    await finalizeExpiredInstantSessions()
 
     const { userId, role } = auth.context
 

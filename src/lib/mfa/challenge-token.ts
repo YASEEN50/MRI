@@ -8,7 +8,14 @@ interface ChallengePayload {
 const TTL_MS = 5 * 60 * 1000
 
 function signingKey(): string {
-  return process.env.NEXTAUTH_SECRET ?? 'dev-mfa-key-change-me'
+  const secret = process.env.NEXTAUTH_SECRET
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('NEXTAUTH_SECRET is required for MFA tokens')
+    }
+    return 'dev-mfa-key-change-me'
+  }
+  return secret
 }
 
 export function createMfaChallengeToken(userId: string): string {

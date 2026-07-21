@@ -28,4 +28,22 @@ describe('notificationActionPath', () => {
       }),
     ).toBe('/dashboard/client/chat?room=r1')
   })
+
+  it('routes withdrawal notifications to withdrawals page', () => {
+    expect(
+      notificationActionPath('WITHDRAWAL_COMPLETED', {}, 'DOCTOR'),
+    ).toBe('/dashboard/doctor/withdrawals')
+  })
+
+  it('routes publication submitted for doctor', () => {
+    expect(
+      notificationActionPath('PUBLICATION_SUBMITTED', {}, 'DOCTOR'),
+    ).toBe('/dashboard/doctor/publications')
+  })
+
+  it('routes verification submitted for doctor to profile', () => {
+    expect(
+      notificationActionPath('VERIFICATION_SUBMITTED', {}, 'DOCTOR'),
+    ).toBe('/profile')
+  })
 })

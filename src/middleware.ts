@@ -58,7 +58,7 @@ function isPiRequest(req: NextRequest): boolean {
 }
 
 function isProtectedPath(pathname: string): boolean {
-  const prefixes = ['/owner', '/admin', '/doctor', '/facility', '/select-role', '/onboarding', '/dashboard']
+  const prefixes = ['/owner', '/admin', '/doctor', '/facility', '/select-role', '/onboarding', '/dashboard', '/profile']
   return prefixes.some(p => pathname === p || pathname.startsWith(`${p}/`))
 }
 

@@ -64,6 +64,13 @@ function memoryFallback(
   return { success: r.success, remaining: r.remaining, resetIn: r.resetIn }
 }
 
+/** GET /api/instant-consult/doctors — 60 requests/minute (per IP) */
+export async function rateLimitInstantConsultDoctors(ip: string): Promise<RateLimitCheckResult> {
+  const upstash = await checkUpstash('instant-consult-doctors', ip, 60, '1 m')
+  if (upstash) return upstash
+  return memoryFallback(`instant-consult-doctors:${ip}`, 60, 60_000)
+}
+
 /** POST auth endpoints — 5 attempts per 15 minutes (per IP + endpoint) */
 export async function rateLimitAuth(ip: string, endpoint: string): Promise<RateLimitCheckResult> {
   const upstash = await checkUpstash(`auth:${endpoint}`, ip, 5, '15 m')

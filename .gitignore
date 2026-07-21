@@ -14,6 +14,11 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*
+!.env.example
+
+# Dev artifacts (never commit)
+.tmp-cookies.txt
 
 # Uploads (local dev)
 uploads/
@@ -40,4 +45,3 @@ Thumbs.db
 next-env.d.ts
 
 .vercel
-.env*

@@ -3,7 +3,13 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypt
 const ALGO = 'aes-256-gcm'
 
 function deriveKey(): Buffer {
-  const secret = process.env.NEXTAUTH_SECRET ?? 'dev-mfa-key-change-me'
+  const secret = process.env.NEXTAUTH_SECRET
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('NEXTAUTH_SECRET is required for MFA encryption')
+    }
+    return createHash('sha256').update('mri-mfa:dev-mfa-key-change-me').digest()
+  }
   return createHash('sha256').update(`mri-mfa:${secret}`).digest()
 }
 
