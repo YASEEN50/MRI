@@ -351,7 +351,6 @@ window.PiAuth = (function () {
     }
 
     if (shouldBlockDashboardRedirect()) {
-      markSkipAuto()
       return Promise.resolve({ mode: 'idle' })
     }
 
@@ -362,6 +361,11 @@ window.PiAuth = (function () {
       .then(function (r) { return r.json() })
       .then(function (s) {
         if (s && s.user) {
+          var loopCount = parseInt(sessionStorage.getItem(LOOP_KEY) || '0', 10)
+          var onLogin = location.pathname === '/login' || location.pathname === '/pi-login.html'
+          if (onLogin && loopCount >= 1) {
+            return { mode: 'idle' }
+          }
           clearSkipAuto()
           clearSessionRedirectLoop()
           window.location.href = resolvePostLoginPath(s)

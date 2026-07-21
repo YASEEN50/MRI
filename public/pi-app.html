@@ -89,6 +89,10 @@
       })
         .then(function (r) { return r.json() })
         .then(function (s) {
+          if (!s || !s.user) {
+            window.location.href = '/login'
+            return
+          }
           window.location.href = window.PiAuth.resolvePostLoginPath(s)
         })
         .catch(function () {

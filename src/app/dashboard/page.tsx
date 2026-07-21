@@ -2,20 +2,16 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
 import { Role } from '@prisma/client'
+import { useRequireAuth } from '@/hooks/useRequireAuth'
 
 /** Client redirect — Pi Browser may not send session cookie on navigation (SSR would fail). */
 export default function DashboardPage() {
-  const { data: session, status } = useSession()
+  const { session, isLoading, isAuthenticated } = useRequireAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (status === 'loading') return
-    if (status === 'unauthenticated') {
-      router.replace('/login')
-      return
-    }
+    if (isLoading || !isAuthenticated) return
 
     switch (session?.user?.role) {
       case Role.OWNER:
@@ -33,7 +29,7 @@ export default function DashboardPage() {
       default:
         router.replace('/dashboard/client/appointments')
     }
-  }, [status, session, router])
+  }, [isLoading, isAuthenticated, session, router])
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">

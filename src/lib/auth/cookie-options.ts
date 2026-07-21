@@ -16,7 +16,7 @@ export function sessionCookieName(): string {
 
 export function sessionCookieOptions(maxAge = SESSION_MAX_AGE_SEC) {
   const crossSite = isCrossSiteAuthCookieMode()
-  const partitioned = crossSite && process.env.NEXTAUTH_COOKIE_PARTITIONED !== 'false'
+  const partitioned = crossSite && process.env.NEXTAUTH_COOKIE_PARTITIONED === 'true'
   return {
     httpOnly: true,
     secure: crossSite || process.env.NODE_ENV === 'production',

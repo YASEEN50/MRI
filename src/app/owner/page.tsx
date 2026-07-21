@@ -1,10 +1,10 @@
 'use client'
 // src/app/owner/page.tsx
-import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { Role } from '@prisma/client'
 import Navbar from '@/components/common/Navbar'
+import { useRequireAuth } from '@/hooks/useRequireAuth'
 
 interface Stats {
   totalUsers: number; totalDoctors: number; totalClients: number
@@ -14,26 +14,22 @@ interface Stats {
 }
 
 export default function OwnerDashboard() {
-  const { data: session, status } = useSession()
-  const router  = useRouter()
+  const { session, isLoading, isAuthenticated } = useRequireAuth({ roles: [Role.OWNER] })
   const [stats,   setStats]   = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [time,    setTime]    = useState(new Date())
 
   useEffect(() => {
-    if (status === 'unauthenticated') { router.push('/login'); return }
-    if (status === 'authenticated' && session?.user?.role !== 'OWNER') { router.push('/unauthorized'); return }
-    if (status === 'authenticated') {
-      fetch('/api/admin/stats').then(r => r.json()).then(d => setStats(d.data)).finally(() => setLoading(false))
-    }
-  }, [status, session, router])
+    if (isLoading || !isAuthenticated) return
+    fetch('/api/admin/stats').then(r => r.json()).then(d => setStats(d.data)).finally(() => setLoading(false))
+  }, [isLoading, isAuthenticated])
 
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
 
-  if (status === 'loading' || loading) return (
+  if (isLoading || loading) return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-3">
         <div className="animate-spin w-10 h-10 border-2 border-primary border-t-transparent rounded-full" />

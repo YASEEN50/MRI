@@ -4,9 +4,16 @@ import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import { isPiBrowser, requestPiCookieAccess } from '@/lib/pi/pi-auth-client'
 
+async function fetchSessionUser(): Promise<boolean> {
+  await requestPiCookieAccess()
+  const res = await fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
+  const data = await res.json()
+  return !!data?.user
+}
+
 /**
  * Pi Browser embeds the app in a cross-site iframe — session cookies may be
- * blocked until requestStorageAccess() runs. Bootstrap once before pages redirect to /login.
+ * blocked until requestStorageAccess() runs. Bootstrap before pages redirect to /login.
  */
 export function PiSessionGate({ children }: { children: React.ReactNode }) {
   const { status, update } = useSession()
@@ -18,28 +25,34 @@ export function PiSessionGate({ children }: { children: React.ReactNode }) {
     if (bootstrapped || !isPiBrowser()) return
 
     let active = true
-    const timeout = window.setTimeout(() => {
-      if (active) setBootstrapped(true)
-    }, 3000)
 
     ;(async () => {
-      await requestPiCookieAccess()
-      try {
-        await Promise.race([
-          update(),
-          new Promise<void>((resolve) => window.setTimeout(resolve, 2500)),
-        ])
-      } catch {
-        /* session refresh optional */
+      for (let attempt = 0; attempt < 6; attempt++) {
+        await requestPiCookieAccess()
+        if (status === 'authenticated') break
+
+        try {
+          await Promise.race([
+            update(),
+            new Promise<void>((resolve) => window.setTimeout(resolve, 1200)),
+          ])
+        } catch {
+          /* optional */
+        }
+
+        if (status === 'authenticated') break
+        if (await fetchSessionUser()) break
+
+        await new Promise((r) => window.setTimeout(r, 400))
       }
+
       if (active) setBootstrapped(true)
     })()
 
     return () => {
       active = false
-      window.clearTimeout(timeout)
     }
-  }, [bootstrapped, update])
+  }, [bootstrapped, status, update])
 
   const waiting = !bootstrapped || (status === 'loading' && isPiBrowser())
 
