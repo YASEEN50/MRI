@@ -10,7 +10,7 @@ import { resolvePiLoginUser } from '@/lib/auth/account-linking'
 import { consumeMfaSignInToken } from '@/lib/mfa/signin-token'
 import { resolveMfaSessionFlags } from '@/lib/mfa/session-flags'
 import { getApprovalStatus, getProfileCompleteness } from '@/lib/auth/session-helpers'
-import { isCrossSiteAuthCookieMode } from '@/lib/auth/cookie-options'
+import { isCrossSiteAuthCookieMode, SESSION_MAX_AGE_SEC } from '@/lib/auth/cookie-options'
 import { isUserAccountActive } from '@/lib/auth/active-account'
 
 declare module 'next-auth' {
@@ -110,7 +110,7 @@ function crossSiteAuthCookies(): NextAuthOptions['cookies'] {
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
-  session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
+  session: { strategy: 'jwt', maxAge: SESSION_MAX_AGE_SEC },
   pages: { signIn: '/login', error: '/login', newUser: '/select-role' },
   useSecureCookies: process.env.NODE_ENV === 'production' || crossSiteCookiesEnabled,
   ...(crossSiteCookiesEnabled ? { cookies: crossSiteAuthCookies() } : {}),

@@ -2,10 +2,35 @@
 window.PiAuth = (function () {
   var SKIP_KEY = 'pi_skip_auto_login'
   var LOGOUT_KEY = 'pi_explicit_logout'
+  var GUEST_COOKIE = 'pi_guest'
   var initSandbox = null
+
+  function readGuestCookie() {
+    try {
+      var m = document.cookie.match(/(?:^|;\s*)pi_guest=([^;]*)/)
+      return m && decodeURIComponent(m[1]) === '1'
+    } catch (e) { return false }
+  }
+
+  function setGuestCookie() {
+    try {
+      var secure = location.protocol === 'https:'
+      var base = GUEST_COOKIE + '=1; Path=/; Max-Age=' + (60 * 60 * 24 * 365)
+      document.cookie = base + (secure ? '; Secure; SameSite=None' : '; SameSite=Lax')
+    } catch (e) {}
+  }
+
+  function clearGuestCookie() {
+    try {
+      var secure = location.protocol === 'https:'
+      var base = GUEST_COOKIE + '=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      document.cookie = base + (secure ? '; Secure; SameSite=None' : '; SameSite=Lax')
+    } catch (e) {}
+  }
 
   function shouldSkipAuto() {
     try {
+      if (readGuestCookie()) return true
       if (localStorage.getItem(LOGOUT_KEY) === '1') return true
       return sessionStorage.getItem(SKIP_KEY) === '1'
     } catch (e) { return false }
@@ -15,6 +40,7 @@ window.PiAuth = (function () {
     try {
       sessionStorage.setItem(SKIP_KEY, '1')
       localStorage.setItem(LOGOUT_KEY, '1')
+      setGuestCookie()
     } catch (e) {}
   }
 
@@ -22,6 +48,7 @@ window.PiAuth = (function () {
     try {
       sessionStorage.removeItem(SKIP_KEY)
       localStorage.removeItem(LOGOUT_KEY)
+      clearGuestCookie()
     } catch (e) {}
   }
 

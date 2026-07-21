@@ -6,7 +6,7 @@ export function isCrossSiteAuthCookieMode(): boolean {
   return url.startsWith('https://')
 }
 
-export const SESSION_MAX_AGE_SEC = 30 * 24 * 60 * 60
+export const SESSION_MAX_AGE_SEC = 14 * 24 * 60 * 60
 
 export function sessionCookieName(): string {
   return isCrossSiteAuthCookieMode()

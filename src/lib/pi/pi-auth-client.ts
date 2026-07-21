@@ -7,8 +7,37 @@ import { resolveIncompletePiPayment, flushPendingIncompletePayments } from '@/li
 
 export const PI_SKIP_AUTO_LOGIN_KEY = 'pi_skip_auto_login'
 export const PI_EXPLICIT_LOGOUT_KEY = 'pi_explicit_logout'
+export const PI_GUEST_COOKIE = 'pi_guest'
 
 let initSandbox: boolean | null = null
+
+function readGuestCookie(): boolean {
+  if (typeof document === 'undefined') return false
+  try {
+    const m = document.cookie.match(/(?:^|;\s*)pi_guest=([^;]*)/)
+    return m !== null && decodeURIComponent(m[1]) === '1'
+  } catch {
+    return false
+  }
+}
+
+function setGuestCookie(): void {
+  if (typeof document === 'undefined') return
+  try {
+    const secure = location.protocol === 'https:'
+    const base = `${PI_GUEST_COOKIE}=1; Path=/; Max-Age=${60 * 60 * 24 * 365}`
+    document.cookie = `${base}${secure ? '; Secure; SameSite=None' : '; SameSite=Lax'}`
+  } catch { /* ignore */ }
+}
+
+function clearGuestCookie(): void {
+  if (typeof document === 'undefined') return
+  try {
+    const secure = location.protocol === 'https:'
+    const base = `${PI_GUEST_COOKIE}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
+    document.cookie = `${base}${secure ? '; Secure; SameSite=None' : '; SameSite=Lax'}`
+  } catch { /* ignore */ }
+}
 
 /** Heuristics: Pi Browser WebView, sandbox iframe, or native Pi SDK present */
 export function isPiBrowser(): boolean {
@@ -52,6 +81,7 @@ export function markExplicitLogout(): void {
   try {
     sessionStorage.setItem(PI_SKIP_AUTO_LOGIN_KEY, '1')
     localStorage.setItem(PI_EXPLICIT_LOGOUT_KEY, '1')
+    setGuestCookie()
   } catch {}
 }
 
@@ -59,12 +89,14 @@ export function clearExplicitLogout(): void {
   try {
     sessionStorage.removeItem(PI_SKIP_AUTO_LOGIN_KEY)
     localStorage.removeItem(PI_EXPLICIT_LOGOUT_KEY)
+    clearGuestCookie()
   } catch {}
   clearPiSessionRedirectLoop()
 }
 
 export function shouldSkipPiAutoLogin(): boolean {
   try {
+    if (readGuestCookie()) return true
     if (localStorage.getItem(PI_EXPLICIT_LOGOUT_KEY) === '1') return true
     return sessionStorage.getItem(PI_SKIP_AUTO_LOGIN_KEY) === '1'
   } catch { return false }

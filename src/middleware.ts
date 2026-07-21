@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import type { NextFetchEvent, NextRequest } from 'next/server'
 import type { JWT } from 'next-auth/jwt'
 import { readMiddlewareAuthToken } from '@/lib/auth/middleware-token'
+import { PI_GUEST_COOKIE } from '@/lib/auth/clear-session-cookies'
 
 const PATIENT_CAPABLE_ROLES = new Set(['CLIENT', 'OWNER', 'ADMIN'])
 
@@ -154,6 +155,11 @@ export default async function middleware(req: NextRequest, _event: NextFetchEven
     if (piRewrite) return piRewrite
 
     if (req.nextUrl.pathname === '/') {
+      const guestMode = req.cookies.get(PI_GUEST_COOKIE)?.value === '1'
+      if (guestMode) {
+        return applyPiWebViewHeaders(NextResponse.rewrite(new URL('/pi.html', req.url)))
+      }
+
       const token = await readMiddlewareAuthToken(req)
       if (!token) {
         if (req.nextUrl.searchParams.get('site') === 'full') {
