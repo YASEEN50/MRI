@@ -10,6 +10,9 @@ export async function performLogout(redirectTo?: string): Promise<void> {
     ? target
     : `${target}${target.includes('?') ? '&' : '?'}logged_out=1`
 
+  // Always land on static Pi guest page after logout (not Next.js `/`).
+  const landing = url.includes('pi.html') ? url : '/pi.html?logged_out=1'
+
   try {
     const res = await fetch('/api/auth/pi-logout', {
       method: 'POST',
@@ -18,8 +21,8 @@ export async function performLogout(redirectTo?: string): Promise<void> {
     })
     const data = await res.json()
     const inner = data?.data ?? data
-    window.location.replace(inner?.redirect ?? url)
+    window.location.replace(inner?.redirect ?? landing)
   } catch {
-    window.location.replace(url)
+    window.location.replace(landing)
   }
 }

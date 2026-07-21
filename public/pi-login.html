@@ -98,6 +98,7 @@
         setLoading('جلسة نشطة — جاري الدخول...')
         return
       }
+      if (window.PiAuth.shouldSkipAuto()) return
       return fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
         .then(function (r) { return r.json() })
         .then(function (s) {

@@ -228,10 +228,15 @@ function isPiEntryPath(): boolean {
   )
 }
 
-/** On load: redirect if session exists on entry pages only */
+/** On load: redirect if session exists on entry pages only (never after explicit logout). */
 export async function runPiAuthOnLoad(): Promise<'redirecting' | 'idle'> {
   if (!isPiEntryPath()) return 'idle'
-  if (shouldSkipPiAutoLogin()) return 'idle'
+  if (shouldSkipPiAutoLogin()) {
+    try {
+      await fetch('/api/auth/pi-logout', { method: 'POST', credentials: 'include', cache: 'no-store' })
+    } catch { /* ignore */ }
+    return 'idle'
+  }
   if (shouldBlockPiDashboardRedirect()) return 'idle'
   try {
     await requestPiCookieAccess()

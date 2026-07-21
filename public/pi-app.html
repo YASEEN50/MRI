@@ -119,12 +119,24 @@
     }
 
     requestCookieAccess().then(function () {
-      return fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
-    }).then(function (r) { return r.json() })
-      .then(function (s) {
-        if (!s || !s.user) {
+      if (window.PiAuth.shouldSkipAuto()) {
+        return fetch('/api/auth/pi-logout', {
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store',
+        }).then(function () {
           showGuest()
-          if (!window.PiAuth.shouldSkipAuto()) window.PiAuth.tryAutoSignIn()
+        })
+      }
+      return fetch('/api/auth/session', { credentials: 'include', cache: 'no-store' })
+    }).then(function (r) {
+      if (!r || typeof r.json !== 'function') return null
+      return r.json()
+    })
+      .then(function (s) {
+        if (!s) return
+        if (!s.user) {
+          showGuest()
           return
         }
 

@@ -100,7 +100,7 @@ export default function Navbar({ locale }: NavbarProps) {
     if (loggingOut) return
     setLoggingOut(true)
     setUserMenuOpen(false)
-    void performLogout('/').catch(() => setLoggingOut(false))
+    void performLogout('/pi.html?logged_out=1').catch(() => setLoggingOut(false))
   }
 
   async function switchLocale() {

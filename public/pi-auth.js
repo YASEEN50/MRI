@@ -331,31 +331,27 @@ window.PiAuth = (function () {
     try { sessionStorage.removeItem(LOOP_KEY) } catch (e) {}
   }
 
+  function clearServerSession() {
+    return requestCookieAccess()
+      .then(function () {
+        return fetch('/api/auth/pi-logout', {
+          method: 'POST',
+          credentials: 'include',
+          cache: 'no-store',
+        })
+      })
+      .catch(function () {})
+  }
+
   function runOnLoad() {
     if (!isEntryPath()) return Promise.resolve({ mode: 'idle' })
 
     var loggedOutParam = location.search.indexOf('logged_out=1') !== -1
     if (loggedOutParam) markSkipAuto()
 
+    // After explicit logout: clear server cookies only — never auto-resume session.
     if (shouldSkipAuto()) {
-      return readSession().then(function (s) {
-        if (s && s.user) {
-          clearSkipAuto()
-          clearSessionRedirectLoop()
-          window.location.href = resolvePostLoginPath(s)
-          return { mode: 'redirecting' }
-        }
-        return requestCookieAccess()
-          .then(function () {
-            return fetch('/api/auth/pi-logout', {
-              method: 'POST',
-              credentials: 'include',
-              cache: 'no-store',
-            })
-          })
-          .then(function () { return { mode: 'idle' } })
-          .catch(function () { return { mode: 'idle' } })
-      })
+      return clearServerSession().then(function () { return { mode: 'idle' } })
     }
 
     return requestCookieAccess()
