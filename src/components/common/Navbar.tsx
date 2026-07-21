@@ -140,7 +140,7 @@ export default function Navbar({ locale }: NavbarProps) {
 
           <div className="flex items-center gap-1.5">
             <div className="hidden md:block"><SearchBar /></div>
-            {isLoggedIn && <div className="hidden sm:block"><NotificationBell /></div>}
+            {isLoggedIn && <NotificationBell />}
 
             <button onClick={switchLocale}
               className="flex items-center px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-primary/10 border border-white/10 text-xs text-slate-400 hover:text-white transition-all">
@@ -215,7 +215,6 @@ export default function Navbar({ locale }: NavbarProps) {
                 {link.label}
               </Link>
             ))}
-            {isLoggedIn && <div className="px-3 pt-2 border-t border-white/5"><NotificationBell /></div>}
             <div className="px-3 pt-2"><SearchBar variant="hero" /></div>
           </div>
         )}
