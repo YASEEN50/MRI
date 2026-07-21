@@ -19,6 +19,7 @@ export default function Footer({ locale = 'ar' }: FooterProps) {
   ]
 
   const supportLinks = [
+    { href: '/dashboard/support', label: isAr ? 'مركز الدعم' : 'Support center' },
     { href: '/contact', label: isAr ? 'اتصل بنا' : 'Contact us' },
     { href: '/privacy', label: isAr ? 'الخصوصية' : 'Privacy' },
     { href: '/terms', label: isAr ? 'الشروط' : 'Terms' },

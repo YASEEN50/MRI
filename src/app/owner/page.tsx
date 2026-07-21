@@ -59,6 +59,7 @@ export default function OwnerDashboard() {
     { href: '/admin/publications',      icon: '📝', label: 'مراجعة المنشورات', desc: pendingPublications > 0 ? `${pendingPublications} بانتظار المراجعة` : 'مقالات الأطباء', clr: '#fb923c' },
     { href: '/owner/account-actions', icon: '⚖️', label: 'إدارة الحسابات', desc: 'تجميد / إلغاء توثيق', clr: '#ef4444' },
     { href: '/owner/moderation',       icon: '🔎', label: 'مراقبة المحتوى', desc: 'تقارير المخالفات',    clr: '#f43f5e' },
+    { href: '/dashboard/support',      icon: '🎫', label: 'تذاكر الدعم',    desc: 'رد على المستخدمين',   clr: '#22d3ee' },
     { href: '/owner/ads',               icon: '📢', label: 'الإعلانات',        desc: 'أسعار ومراجعة',      clr: '#fbbf24' },
     { href: '/owner/withdrawals',       icon: '💸', label: 'سحب الأطباء',     desc: 'تحويل π للأطباء',    clr: '#34d399' },
     { href: '/owner/patient-refunds',   icon: '↩️', label: 'استرداد المرضى',  desc: 'A2U بعد الاستشارة',  clr: '#38bdf8' },

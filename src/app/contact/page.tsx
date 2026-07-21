@@ -16,7 +16,11 @@ export default async function ContactPage() {
         <>
           <h2>الدعم الفني</h2>
           <p>
-            للاستفسارات العامة أو مشاكل الحساب، راسلنا على:{' '}
+            الأفضل فتح تذكرة داخل المنصة للمتابعة والرد السريع:{' '}
+            <Link href="/dashboard/support" className="text-accent hover:underline">مركز الدعم</Link>
+          </p>
+          <p className="text-slate-400 text-sm">
+            أو راسلنا على البريد (احتياطي):{' '}
             <a href="mailto:support@mri.app">support@mri.app</a>
           </p>
           <h2>التحقق والاعتماد</h2>
@@ -31,7 +35,11 @@ export default async function ContactPage() {
         <>
           <h2>Technical Support</h2>
           <p>
-            For general inquiries:{' '}
+            Prefer in-app tickets:{' '}
+            <Link href="/dashboard/support" className="text-accent hover:underline">Support center</Link>
+          </p>
+          <p className="text-slate-400 text-sm">
+            Email (fallback):{' '}
             <a href="mailto:support@mri.app">support@mri.app</a>
           </p>
           <h2>Response Time</h2>
