@@ -1,7 +1,27 @@
 const SCROLL_PREFIX = 'scroll-pos:'
+const SCROLL_RESTORE_NEXT_KEY = 'scroll-restore-next'
 
 export function scrollStorageKey(pathname: string, search: string): string {
   return `${SCROLL_PREFIX}${pathname}${search ? `?${search}` : ''}`
+}
+
+/** Mark destination route to restore scroll after router.push back navigation. */
+export function markScrollRestoreOnNextNav(pathname: string, search: string): void {
+  try {
+    sessionStorage.setItem(SCROLL_RESTORE_NEXT_KEY, scrollStorageKey(pathname, search))
+  } catch {
+    /* ignore */
+  }
+}
+
+export function consumeScrollRestoreTarget(): string | null {
+  try {
+    const key = sessionStorage.getItem(SCROLL_RESTORE_NEXT_KEY)
+    sessionStorage.removeItem(SCROLL_RESTORE_NEXT_KEY)
+    return key
+  } catch {
+    return null
+  }
 }
 
 export function saveScrollPosition(key: string, y: number): void {

@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { CountryCitySelect } from '@/components/geo/CountryCitySelect'
+import AppBackBar from '@/components/common/AppBackBar'
 
 export default function ClientOnboardingPage() {
   const router = useRouter()
@@ -53,6 +54,8 @@ export default function ClientOnboardingPage() {
   }
 
   return (
+    <>
+      <AppBackBar />
     <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center p-4" dir="rtl">
       <div className="fixed inset-0 bg-[linear-gradient(rgba(16,185,129,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
 
@@ -121,5 +124,6 @@ export default function ClientOnboardingPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }

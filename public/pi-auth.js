@@ -224,12 +224,7 @@ window.PiAuth = (function () {
       if (u.role === 'FACILITY') return '/onboarding/facility'
       return '/select-role'
     }
-    if (u.role === 'CLIENT') return '/dashboard/client/appointments'
-    if (u.role === 'DOCTOR') return '/dashboard/doctor/schedule'
-    if (u.role === 'FACILITY') return '/dashboard/facility/overview'
-    if (u.role === 'OWNER') return '/owner'
-    if (u.role === 'ADMIN') return '/dashboard/admin/verification'
-    return '/dashboard'
+    return '/'
   }
 
   function verifySessionThenGo() {

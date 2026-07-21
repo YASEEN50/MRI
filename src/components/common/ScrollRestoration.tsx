@@ -7,6 +7,7 @@ import {
   restoreScrollPosition,
   saveScrollPosition,
   scrollStorageKey,
+  consumeScrollRestoreTarget,
 } from '@/lib/navigation/scroll-restoration'
 
 /**
@@ -40,7 +41,9 @@ export default function ScrollRestoration() {
   useEffect(() => {
     activeKeyRef.current = routeKey
 
-    const saved = popStateRef.current ? readScrollPosition(routeKey) : null
+    const restoreTarget = consumeScrollRestoreTarget()
+    const saved =
+      popStateRef.current || restoreTarget === routeKey ? readScrollPosition(routeKey) : null
     if (saved != null) {
       restoreScrollPosition(saved)
     } else {

@@ -23,16 +23,11 @@ export function resolvePostLoginPath(session: {
 
   switch (user.role) {
     case 'CLIENT':
-      return '/dashboard/client/appointments'
     case 'DOCTOR':
-      return '/dashboard/doctor/schedule'
     case 'FACILITY':
-      return '/dashboard/facility/overview'
     case 'OWNER':
-      return '/owner'
     case 'ADMIN':
-      return '/dashboard/admin/verification'
     default:
-      return '/dashboard'
+      return '/'
   }
 }

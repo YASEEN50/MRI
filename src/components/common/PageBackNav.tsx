@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { buildNavigationTrail } from '@/lib/navigation/breadcrumbs'
+import { markScrollRestoreOnNextNav } from '@/lib/navigation/scroll-restoration'
 
 interface PageBackNavProps {
   locale: 'ar' | 'en'
@@ -23,10 +24,9 @@ export default function PageBackNav({ locale }: PageBackNavProps) {
   const { backHref, backLabel, crumbs } = trail
 
   function handleBack() {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back()
-      return
-    }
+    // Use semantic parent — not browser history (Pi login page often sits in history).
+    const [path, query = ''] = backHref.split('?')
+    markScrollRestoreOnNextNav(path, query)
     router.push(backHref)
   }
 

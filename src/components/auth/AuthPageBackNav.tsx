@@ -15,10 +15,6 @@ export default function AuthPageBackNav() {
   if (!backHref) return null
 
   function handleBack() {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back()
-      return
-    }
     router.push(backHref)
   }
 

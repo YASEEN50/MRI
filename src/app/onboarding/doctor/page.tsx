@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import CountrySelect, { CountryCitySelect } from '@/components/geo/CountryCitySelect'
+import AppBackBar from '@/components/common/AppBackBar'
 
 const SPECIALIZATIONS = [
   'طب القلب والأوعية الدموية','طب الأطفال','طب العيون','طب الأسنان',
@@ -119,6 +120,8 @@ export default function DoctorOnboardingPage() {
   const labelCls = "block text-sm text-slate-300 mb-2"
 
   return (
+    <>
+      <AppBackBar />
     <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center p-4" dir="rtl">
       <div className="fixed inset-0 opacity-30"
         style={{backgroundImage:'radial-gradient(circle at 20% 50%, rgba(59,130,246,0.1) 0%, transparent 50%),'+'radial-gradient(circle at 80% 20%, rgba(16,185,129,0.08) 0%, transparent 50%)'}} />
@@ -421,5 +424,6 @@ export default function DoctorOnboardingPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }

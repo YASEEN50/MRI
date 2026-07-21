@@ -69,6 +69,7 @@ const SEGMENT_LABELS: Record<string, { ar: string; en: string }> = {
   'doctors-map': { ar: 'خريطة الأطباء', en: 'Doctors map' },
   ads: { ar: 'الإعلانات', en: 'Ads' },
   advertise: { ar: 'إعلان مدفوع', en: 'Advertise' },
+  support: { ar: 'الدعم', en: 'Support' },
   unauthorized: { ar: 'غير مصرح', en: 'Unauthorized' },
 }
 
@@ -135,6 +136,28 @@ type BackRuleTarget =
   | string
   | ((pathname: string, role?: string, options?: NavOptions) => string)
 
+const DASHBOARD_ROLE_HUB = /^\/dashboard\/(client|doctor|facility|admin)$/
+const ROLE_DEFAULT_PAGES = new Set(Object.values(DASHBOARD_ROLE_DEFAULT))
+
+/** Resolve a safe back target — avoids dashboard redirect loops for every role. */
+export function collapseBackHref(current: string, candidate: string, role?: string): string {
+  if (!candidate || candidate === current) return '/'
+
+  if (candidate === '/dashboard' || DASHBOARD_ROLE_HUB.test(candidate)) {
+    const roleKey = candidate.split('/')[2]
+    const defaultPage = roleKey ? DASHBOARD_ROLE_DEFAULT[roleKey] : undefined
+    if (defaultPage && defaultPage !== current) return defaultPage
+    return '/'
+  }
+
+  if (ROLE_DEFAULT_PAGES.has(current)) return '/'
+
+  const normalized = normalizeNavHref(candidate, role)
+  if (normalized !== current) return normalized
+
+  return '/'
+}
+
 /** Parent path for the prominent back button (may skip intermediate UUID segments). */
 export function resolveBackHref(
   pathname: string,
@@ -151,8 +174,13 @@ export function resolveBackHref(
     [/^\/admin\/publications$/, '/admin'],
     [/^\/admin\/verification\/[^/]+$/, '/admin/verification'],
     [/^\/owner\/admins\/[^/]+$/, '/owner'],
+    [/^\/dashboard\/support\/[^/]+$/, '/dashboard/support'],
+    [/^\/dashboard\/support$/, '/'],
     [/^\/dashboard\/client\/chat$/, '/dashboard/client/appointments'],
     [/^\/dashboard\/doctor\/chat$/, '/dashboard/doctor/schedule'],
+    [/^\/onboarding\/(client|doctor|facility)$/, '/select-role'],
+    [/^\/doctor\/(pending|verify)$/, '/'],
+    [/^\/facility\/(pending|verify)$/, '/'],
     [
       /^\/consult-now\/[^/]+\/video$/,
       (_p, r, opts) => getChatPath(r ?? Role.CLIENT, opts?.roomId),
@@ -169,37 +197,28 @@ export function resolveBackHref(
     if (pattern.test(pathname)) {
       const href =
         typeof target === 'function' ? target(pathname, role, options) : target
-      return normalizeNavHref(href, role)
+      return collapseBackHref(pathname, href, role)
     }
   }
 
   const segments = pathname.split('/').filter(Boolean)
   if (segments.length <= 1) {
     const href = segments.length === 1 ? '/' : null
-    return href ? normalizeNavHref(href, role) : null
+    return href ? collapseBackHref(pathname, href, role) : null
   }
 
   segments.pop()
-  return normalizeNavHref(`/${segments.join('/')}`, role)
+  return collapseBackHref(pathname, `/${segments.join('/')}`, role)
 }
 
 function prependRootCrumb(
   pathname: string,
   crumbs: NavCrumb[],
   locale: 'ar' | 'en',
-  role?: string,
+  _role?: string,
 ): NavCrumb[] {
-  const rootHref = pathname.startsWith('/owner')
-    ? '/owner'
-    : pathname.startsWith('/dashboard') || pathname.startsWith('/admin')
-      ? getDashboardHref(role)
-      : '/'
-
-  const rootLabel = pathname.startsWith('/owner')
-    ? getDashboardLabel(locale, Role.OWNER)
-    : pathname.startsWith('/dashboard') || pathname.startsWith('/admin')
-      ? getDashboardLabel(locale, role)
-      : getDashboardLabel(locale)
+  const rootHref = '/'
+  const rootLabel = getDashboardLabel(locale)
 
   if (crumbs[0]?.href === rootHref) return crumbs
   return [{ label: rootLabel, href: rootHref }, ...crumbs]
