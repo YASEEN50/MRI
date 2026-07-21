@@ -27,20 +27,24 @@ export function PiSessionGate({ children }: { children: React.ReactNode }) {
     let active = true
 
     ;(async () => {
+      if (status === 'authenticated') {
+        if (active) setBootstrapped(true)
+        return
+      }
+
       for (let attempt = 0; attempt < 6; attempt++) {
         await requestPiCookieAccess()
-        if (status === 'authenticated') break
 
         try {
-          await Promise.race([
+          const refreshed = await Promise.race([
             update(),
-            new Promise<void>((resolve) => window.setTimeout(resolve, 1200)),
+            new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 1200)),
           ])
+          if (refreshed?.user) break
         } catch {
           /* optional */
         }
 
-        if (status === 'authenticated') break
         if (await fetchSessionUser()) break
 
         await new Promise((r) => window.setTimeout(r, 400))
