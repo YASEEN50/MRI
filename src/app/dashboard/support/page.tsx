@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardShell from '@/components/dashboard/DashboardShell'
 import { useRequireAuth } from '@/hooks/useRequireAuth'
+import { getApiError, isApiSuccess } from '@/lib/api-client'
 import { SUPPORT_CATEGORY_LABELS, SUPPORT_STATUS_LABELS } from '@/lib/support/constants'
 
 const CATEGORIES = Object.keys(SUPPORT_CATEGORY_LABELS) as (keyof typeof SUPPORT_CATEGORY_LABELS)[]
@@ -79,8 +80,9 @@ export default function SupportPage() {
         body: JSON.stringify(form),
       })
       const json = await res.json()
-      if (json.data?.error) {
-        setErr(json.data.message ?? 'فشل الإرسال')
+      const errMsg = getApiError(json)
+      if (errMsg) {
+        setErr(errMsg)
         return
       }
       const id = json.data?.id

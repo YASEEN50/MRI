@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { getApiError, isApiSuccess } from '@/lib/api-client'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -104,8 +105,8 @@ export default function DoctorInstantConsultPage() {
     setMessage('')
     const res = await fetch(`/api/instant-consult/${id}/accept`, { method: 'POST' })
     const data = await res.json()
-    if (!data.success || data.data?.error) {
-      setMessage(`❌ ${data.data?.message ?? data.error?.message ?? 'فشل قبول الطلب'}`)
+    if (!isApiSuccess(data)) {
+      setMessage(`❌ ${getApiError(data) ?? 'فشل قبول الطلب'}`)
       await load()
       return
     }
@@ -121,8 +122,8 @@ export default function DoctorInstantConsultPage() {
     setMessage('')
     const res = await fetch(`/api/instant-consult/${id}/reject`, { method: 'POST' })
     const data = await res.json()
-    if (!data.success || data.data?.error) {
-      setMessage(`❌ ${data.data?.message ?? 'فشل رفض الطلب'}`)
+    if (!isApiSuccess(data)) {
+      setMessage(`❌ ${getApiError(data) ?? 'فشل رفض الطلب'}`)
     } else if (data.data?.dismissed) {
       setMessage('تم تجاهل طلب البث — لا يُسترد للمريض حتى ينتهي الطلب أو يرفض الطبيب المعيّن')
     } else {

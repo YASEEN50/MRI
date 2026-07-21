@@ -1,6 +1,7 @@
 'use client'
 
 import type { PiPaymentDto } from '@/lib/pi/pi-payment-dto'
+import { getApiError, isApiSuccess } from '@/lib/api-client'
 
 const PENDING_INCOMPLETE_KEY = 'pi_pending_incomplete'
 
@@ -32,9 +33,11 @@ async function postIncompletePayment(
     body: JSON.stringify({ payment, accessToken }),
   })
   const data = await res.json()
-  if (data.success && !data.data?.error) return { ok: true }
-  if (data.data?.code === 'AUTH_REQUIRED') return { ok: false, authRequired: true }
-  throw new Error(data.data?.message || data.message || 'فشل إكمال الدفع المعلق')
+  if (isApiSuccess(data)) return { ok: true }
+  if (data.error?.code === 'UNAUTHORIZED' || data.data?.code === 'AUTH_REQUIRED') {
+    return { ok: false, authRequired: true }
+  }
+  throw new Error(getApiError(data) || 'فشل إكمال الدفع المعلق')
 }
 
 /** Complete in-flight Pi payment via backend (required by Pi SDK). */

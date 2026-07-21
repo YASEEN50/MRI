@@ -71,6 +71,27 @@ export async function rateLimitInstantConsultDoctors(ip: string): Promise<RateLi
   return memoryFallback(`instant-consult-doctors:${ip}`, 60, 60_000)
 }
 
+/** GET /api/search — 60 requests/minute (per IP) */
+export async function rateLimitSearch(ip: string): Promise<RateLimitCheckResult> {
+  const upstash = await checkUpstash('search', ip, 60, '1 m')
+  if (upstash) return upstash
+  return memoryFallback(`search:${ip}`, 60, 60_000)
+}
+
+/** POST chat / support messages — 40 requests/minute (per IP) */
+export async function rateLimitChat(ip: string): Promise<RateLimitCheckResult> {
+  const upstash = await checkUpstash('chat', ip, 40, '1 m')
+  if (upstash) return upstash
+  return memoryFallback(`chat:${ip}`, 40, 60_000)
+}
+
+/** POST Pi payment — 20 requests/minute (per IP) */
+export async function rateLimitPayment(ip: string): Promise<RateLimitCheckResult> {
+  const upstash = await checkUpstash('payment', ip, 20, '1 m')
+  if (upstash) return upstash
+  return memoryFallback(`payment:${ip}`, 20, 60_000)
+}
+
 /** POST auth endpoints — 5 attempts per 15 minutes (per IP + endpoint) */
 export async function rateLimitAuth(ip: string, endpoint: string): Promise<RateLimitCheckResult> {
   const upstash = await checkUpstash(`auth:${endpoint}`, ip, 5, '15 m')

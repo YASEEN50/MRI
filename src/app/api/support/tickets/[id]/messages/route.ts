@@ -5,7 +5,8 @@ import { z } from 'zod'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { requireAdminPermission, ADMIN_PERMISSION_KEYS } from '@/lib/admin/permissions'
 import { prisma } from '@/lib/prisma'
-import { ok, created, fromAppError, serverError } from '@/lib/api-response'
+import { ok, created, fromAppError, serverError, badRequest, notFound, forbidden } from '@/lib/api-response'
+import { enforceChatRateLimit } from '@/lib/enforce-api-rate-limit'
 import { UnauthorizedError } from '@/core/errors'
 import { canAccessSupportTicket, isSupportStaff, userMayReply } from '@/lib/support/access'
 import { notifySupportStaffUserReply, notifyTicketUserReply } from '@/lib/support/notify'
@@ -19,23 +20,26 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const limited = await enforceChatRateLimit(req)
+    if (limited) return limited
+
     const auth = await requireAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const { id } = await params
     const ticket = await prisma.supportTicket.findUnique({ where: { id } })
-    if (!ticket) return ok({ error: true, message: 'التذكرة غير موجودة' })
+    if (!ticket) return notFound('التذكرة غير موجودة')
 
     const allowed = await canAccessSupportTicket(ticket, auth.context.userId, auth.context.role)
     if (!allowed) return fromAppError(new UnauthorizedError('غير مصرح'))
 
     if (!userMayReply(ticket.status)) {
-      return ok({ error: true, message: 'التذكرة مغلقة — افتح تذكرة جديدة إن لزم' })
+      return badRequest('التذكرة مغلقة — افتح تذكرة جديدة إن لزم')
     }
 
     const body = await req.json()
     const parsed = MessageSchema.safeParse(body)
-    if (!parsed.success) return ok({ error: true, message: 'الرسالة فارغة' })
+    if (!parsed.success) return badRequest('الرسالة فارغة')
 
     const staff = await isSupportStaff(auth.context.userId, auth.context.role)
     if (staff && auth.context.role === Role.ADMIN) {

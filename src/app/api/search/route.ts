@@ -3,6 +3,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ok, serverError } from '@/lib/api-response'
+import { enforceSearchRateLimit } from '@/lib/enforce-api-rate-limit'
 import { PublicationStatus, ApprovalStatus } from '@prisma/client'
 import { buildDoctorTextSearch } from '@/lib/doctors/search-text'
 import { doctorProfilePublicWhere, expireStalePremios } from '@/lib/premio/active-premio'
@@ -11,6 +12,9 @@ import { sortByPremioTier } from '@/lib/premio/tiers'
 
 export async function GET(req: NextRequest) {
   try {
+    const limited = await enforceSearchRateLimit(req)
+    if (limited) return limited
+
     const q      = req.nextUrl.searchParams.get('q') ?? ''
     const filter = req.nextUrl.searchParams.get('filter') ?? 'all' // all | doctors | facilities | publications
     const city   = req.nextUrl.searchParams.get('city') ?? ''

@@ -17,6 +17,13 @@ export const SUPPORT_STATUS_LABELS: Record<SupportTicketStatus, string> = {
   CLOSED: 'مغلقة',
 }
 
+export const SUPPORT_PRIORITY_LABELS: Record<string, string> = {
+  LOW: 'منخفضة',
+  MEDIUM: 'متوسطة',
+  HIGH: 'عالية',
+  URGENT: 'عاجلة',
+}
+
 export const OPEN_SUPPORT_STATUSES: SupportTicketStatus[] = [
   SupportTicketStatus.OPEN,
   SupportTicketStatus.WAITING_USER,

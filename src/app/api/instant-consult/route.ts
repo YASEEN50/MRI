@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { Role, InstantConsultStatus } from '@prisma/client'
 import { requireAuth, requirePatientAuth } from '@/infrastructure/auth/providers/role-guard'
-import { ok, created, fromAppError, serverError, fromZodError } from '@/lib/api-response'
+import { ok, created, fromAppError, serverError, fromZodError, badRequest, conflict, notFound } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 import { canActAsPatient, ensureClientProfile, getClientProfileId } from '@/lib/client/patient-access'
 import {
@@ -180,9 +180,7 @@ export async function POST(req: NextRequest) {
       },
     })
     if (activeClientRequest) {
-      return ok({
-        error: true,
-        message: 'لديك طلب استشارة نشط — أكمله أو انتظر انتهاءه',
+      return conflict('لديك طلب استشارة نشط — أكمله أو انتظر انتهاءه', {
         requestId: activeClientRequest.id,
       })
     }
@@ -190,7 +188,7 @@ export async function POST(req: NextRequest) {
     if ('broadcast' in parsed.data && parsed.data.broadcast) {
       const available = await listAvailableInstantDoctors(parsed.data.specialization)
       if (available.length === 0) {
-        return ok({ error: true, message: 'لا يوجد أطباء متاحون في هذا التخصص الآن' })
+        return notFound('لا يوجد أطباء متاحون في هذا التخصص الآن')
       }
 
       const fee = Math.max(...available.map((d) => d.fee))
@@ -227,10 +225,10 @@ export async function POST(req: NextRequest) {
       },
       select: { id: true, instantConsultFee: true, firstName: true, lastName: true },
     })
-    if (!doctor) return ok({ error: true, message: 'الطبيب غير متاح للاستشارة الفورية' })
+    if (!doctor) return notFound('الطبيب غير متاح للاستشارة الفورية')
 
     if (await doctorHasActiveInstantSession(doctor.id)) {
-      return ok({ error: true, message: 'الطبيب مشغول في استشارة أخرى — جرّب طبيباً آخر' })
+      return conflict('الطبيب مشغول في استشارة أخرى — جرّب طبيباً آخر')
     }
 
     const fee = Number(doctor.instantConsultFee)

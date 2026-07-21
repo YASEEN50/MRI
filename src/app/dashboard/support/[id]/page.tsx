@@ -5,7 +5,8 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import DashboardShell from '@/components/dashboard/DashboardShell'
 import { useRequireAuth } from '@/hooks/useRequireAuth'
-import { SUPPORT_CATEGORY_LABELS, SUPPORT_STATUS_LABELS } from '@/lib/support/constants'
+import { getApiError, isApiSuccess } from '@/lib/api-client'
+import { SUPPORT_CATEGORY_LABELS, SUPPORT_PRIORITY_LABELS, SUPPORT_STATUS_LABELS } from '@/lib/support/constants'
 
 interface Message {
   id: string
@@ -21,8 +22,14 @@ interface TicketDetail {
   category: keyof typeof SUPPORT_CATEGORY_LABELS
   status: keyof typeof SUPPORT_STATUS_LABELS
   priority: string
+  assignedTo?: string | null
   messages: Message[]
   user?: { piUsername?: string | null; role?: string }
+}
+
+interface StaffOption {
+  id: string
+  label: string
 }
 
 export default function SupportTicketPage() {
@@ -32,6 +39,7 @@ export default function SupportTicketPage() {
   const isStaff = ['OWNER', 'ADMIN'].includes(session?.user?.role ?? '')
 
   const [ticket, setTicket] = useState<TicketDetail | null>(null)
+  const [staff, setStaff] = useState<StaffOption[]>([])
   const [reply, setReply] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -43,8 +51,9 @@ export default function SupportTicketPage() {
     try {
       const res = await fetch(`/api/support/tickets/${id}`)
       const json = await res.json()
-      if (json.data?.error) {
-        setErr(json.data.message)
+      const errMsg = getApiError(json)
+      if (errMsg) {
+        setErr(errMsg)
         return
       }
       setTicket(json.data)
@@ -60,6 +69,16 @@ export default function SupportTicketPage() {
     void load()
   }, [isLoading, isAuthenticated, load])
 
+  useEffect(() => {
+    if (!isStaff || !isAuthenticated) return
+    fetch('/api/support/staff')
+      .then(r => r.json())
+      .then(json => {
+        if (isApiSuccess(json)) setStaff(json.data ?? [])
+      })
+      .catch(() => {})
+  }, [isStaff, isAuthenticated])
+
   async function sendReply() {
     if (!reply.trim()) return
     setSaving(true)
@@ -71,8 +90,9 @@ export default function SupportTicketPage() {
         body: JSON.stringify({ body: reply }),
       })
       const json = await res.json()
-      if (json.data?.error) {
-        setErr(json.data.message)
+      const errMsg = getApiError(json)
+      if (errMsg) {
+        setErr(errMsg)
         return
       }
       setReply('')
@@ -84,13 +104,23 @@ export default function SupportTicketPage() {
     }
   }
 
-  async function updateStatus(newStatus: string) {
-    await fetch(`/api/support/tickets/${id}`, {
+  async function patchTicket(body: Record<string, unknown>) {
+    const res = await fetch(`/api/support/tickets/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify(body),
     })
+    const json = await res.json()
+    const errMsg = getApiError(json)
+    if (errMsg) {
+      setErr(errMsg)
+      return
+    }
     void load()
+  }
+
+  async function updateStatus(newStatus: string) {
+    await patchTicket({ status: newStatus })
   }
 
   const closed = ticket?.status === 'CLOSED' || ticket?.status === 'RESOLVED'
@@ -119,17 +149,46 @@ export default function SupportTicketPage() {
             </div>
 
             {isStaff && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {['WAITING_USER', 'RESOLVED', 'CLOSED'].map(s => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => void updateStatus(s)}
-                    className="px-3 py-1 text-xs rounded-lg border border-slate-700 text-slate-300 hover:border-primary"
-                  >
-                    {SUPPORT_STATUS_LABELS[s as keyof typeof SUPPORT_STATUS_LABELS]}
-                  </button>
-                ))}
+              <div className="mpi-card p-4 mb-4 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {['WAITING_USER', 'RESOLVED', 'CLOSED'].map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => void updateStatus(s)}
+                      className="px-3 py-1 text-xs rounded-lg border border-slate-700 text-slate-300 hover:border-primary"
+                    >
+                      {SUPPORT_STATUS_LABELS[s as keyof typeof SUPPORT_STATUS_LABELS]}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="text-xs text-slate-400">
+                    الأولوية
+                    <select
+                      className="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 text-white px-3 py-2 text-sm"
+                      value={ticket.priority}
+                      onChange={e => void patchTicket({ priority: e.target.value })}
+                    >
+                      {Object.entries(SUPPORT_PRIORITY_LABELS).map(([key, label]) => (
+                        <option key={key} value={key}>{label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs text-slate-400">
+                    الإسناد إلى
+                    <select
+                      className="mt-1 w-full rounded-lg bg-slate-900 border border-slate-700 text-white px-3 py-2 text-sm"
+                      value={ticket.assignedTo ?? ''}
+                      onChange={e => void patchTicket({ assignedTo: e.target.value || null })}
+                    >
+                      <option value="">— غير مُسند —</option>
+                      {staff.map(s => (
+                        <option key={s.id} value={s.id}>{s.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
               </div>
             )}
 

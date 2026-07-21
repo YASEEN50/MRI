@@ -28,53 +28,53 @@ function getDashboardLink(role?: Role) {
   }
 }
 
-function getRoleNavLinks(role: Role | undefined, locale: 'ar' | 'en', t: (k: string) => string) {
+function getRoleNavLinks(role: Role | undefined, t: (k: string) => string) {
   if (!role || role === Role.CLIENT) {
     return [
       { href: '/',             label: t('nav.home') },
-      { href: '/publications', label: locale === 'ar' ? 'المنشورات' : 'Publications' },
+      { href: '/publications', label: t('nav.publications') },
       { href: '/doctors',      label: t('nav.doctors') },
       { href: '/facilities',   label: t('nav.facilities') },
-      { href: '/consult-now', label: locale === 'ar' ? '⚡ استشارة فورية' : 'Instant consult' },
-      { href: '/appointments', label: locale === 'ar' ? 'مواعيدي' : 'My Appointments' },
-      { href: '/dashboard/support', label: locale === 'ar' ? '🎫 الدعم' : 'Support' },
+      { href: '/consult-now', label: t('nav.instant_consult') },
+      { href: '/appointments', label: t('nav.my_appointments') },
+      { href: '/dashboard/support', label: t('nav.support') },
     ]
   }
   if (role === Role.DOCTOR) {
     return [
       { href: '/',                              label: t('nav.home') },
-      { href: '/dashboard/doctor/schedule', label: locale === 'ar' ? 'جدولي' : 'Schedule' },
-      { href: '/dashboard/doctor/instant-consult', label: locale === 'ar' ? '⚡ فوري' : 'Instant' },
-      { href: '/dashboard/doctor/chat',     label: locale === 'ar' ? 'المحادثات' : 'Chat' },
-      { href: '/dashboard/support',         label: locale === 'ar' ? '🎫 الدعم' : 'Support' },
+      { href: '/dashboard/doctor/schedule', label: t('nav.schedule') },
+      { href: '/dashboard/doctor/instant-consult', label: t('nav.instant') },
+      { href: '/dashboard/doctor/chat',     label: t('nav.chat') },
+      { href: '/dashboard/support',         label: t('nav.support') },
       { href: '/doctors',                   label: t('nav.doctors') },
     ]
   }
   if (role === Role.FACILITY) {
     return [
       { href: '/',                              label: t('nav.home') },
-      { href: '/dashboard/facility/overview', label: locale === 'ar' ? 'لوحة المنشأة' : 'Overview' },
-      { href: '/dashboard/facility/departments', label: locale === 'ar' ? 'الأقسام' : 'Departments' },
-      { href: '/dashboard/facility/department-doctors', label: locale === 'ar' ? 'أطباء الأقسام' : 'Dept. doctors' },
-      { href: '/dashboard/facility/on-call',      label: locale === 'ar' ? 'المناوبات' : 'On-call' },
-      { href: '/dashboard/facility/appointments', label: locale === 'ar' ? 'المواعيد' : 'Appointments' },
-      { href: '/dashboard/facility/settings',   label: locale === 'ar' ? 'الإعدادات' : 'Settings' },
-      { href: '/dashboard/facility/doctors',  label: locale === 'ar' ? 'الأطباء' : 'Doctors' },
-      { href: '/dashboard/support',           label: locale === 'ar' ? '🎫 الدعم' : 'Support' },
+      { href: '/dashboard/facility/overview', label: t('nav.facility_overview') },
+      { href: '/dashboard/facility/departments', label: t('nav.departments') },
+      { href: '/dashboard/facility/department-doctors', label: t('nav.dept_doctors') },
+      { href: '/dashboard/facility/on-call',      label: t('nav.on_call') },
+      { href: '/dashboard/facility/appointments', label: t('nav.my_appointments') },
+      { href: '/dashboard/facility/settings',   label: t('nav.settings') },
+      { href: '/dashboard/facility/doctors',  label: t('nav.doctors') },
+      { href: '/dashboard/support',           label: t('nav.support') },
       { href: '/facilities',                  label: t('nav.facilities') },
     ]
   }
   if (role === Role.ADMIN || role === Role.OWNER) {
     return [
       { href: '/',                         label: t('nav.home') },
-      { href: getDashboardLink(role),     label: role === Role.OWNER ? (locale === 'ar' ? 'لوحة المالك' : 'Owner') : (locale === 'ar' ? 'لوحة التحكم' : 'Dashboard') },
-      { href: '/dashboard/client/appointments', label: locale === 'ar' ? '🩺 مواعيدي' : 'My care' },
-      { href: '/consult-now',             label: locale === 'ar' ? '⚡ استشارة فورية' : 'Instant consult' },
+      { href: getDashboardLink(role),     label: role === Role.OWNER ? t('nav.owner_panel') : t('nav.dashboard') },
+      { href: '/dashboard/client/appointments', label: t('nav.my_care') },
+      { href: '/consult-now',             label: t('nav.instant_consult') },
       { href: '/doctors',                 label: t('nav.doctors') },
-      { href: '/dashboard/admin/pending', label: locale === 'ar' ? 'الطلبات المعلقة' : 'Pending' },
-      { href: '/admin/verification-v2',   label: 'التحقق v2' },
-      { href: '/publications',            label: locale === 'ar' ? 'المنشورات' : 'Publications' },
-      { href: '/dashboard/support',       label: locale === 'ar' ? '🎫 الدعم' : 'Support' },
+      { href: '/dashboard/admin/pending', label: t('nav.pending') },
+      { href: '/admin/verification-v2',   label: t('nav.verification_v2') },
+      { href: '/publications',            label: t('nav.publications') },
+      { href: '/dashboard/support',       label: t('nav.support') },
     ]
   }
   return [
@@ -94,7 +94,7 @@ export default function Navbar({ locale }: NavbarProps) {
   const role = session?.user?.role as Role | undefined
   const [loggingOut, setLoggingOut] = useState(false)
   const isLoggedIn = status === 'authenticated' && !!session
-  const navLinks = getRoleNavLinks(role, locale, t)
+  const navLinks = getRoleNavLinks(role, t)
 
   function handleLogout() {
     if (loggingOut) return

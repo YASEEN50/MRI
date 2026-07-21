@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
-import { ok, serverError } from '@/lib/api-response'
+import { ok, serverError, badRequest, unauthorized, serviceUnavailable, fail } from '@/lib/api-response'
+import { enforcePaymentRateLimit } from '@/lib/enforce-api-rate-limit'
 import { parsePiPaymentDto } from '@/lib/pi/pi-payment-dto'
 import { processIncompletePiPayment } from '@/lib/pi/process-incomplete-payment'
 import { getPiNetworkApiKey, PI_PAYMENTS_NOT_CONFIGURED_MSG } from '@/lib/pi/pi-api-key'
@@ -14,16 +15,19 @@ const IncompleteSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = await enforcePaymentRateLimit(req)
+    if (limited) return limited
+
     if (!getPiNetworkApiKey()) {
-      return ok({ error: true, message: PI_PAYMENTS_NOT_CONFIGURED_MSG })
+      return serviceUnavailable(PI_PAYMENTS_NOT_CONFIGURED_MSG)
     }
 
     const body = await req.json()
     const parsed = IncompleteSchema.safeParse(body)
-    if (!parsed.success) return ok({ error: true, message: 'بيانات غير صحيحة' })
+    if (!parsed.success) return badRequest('بيانات غير صحيحة')
 
     const payment = parsePiPaymentDto(parsed.data.payment)
-    if (!payment) return ok({ error: true, message: 'بيانات الدفع غير صحيحة' })
+    if (!payment) return badRequest('بيانات الدفع غير صحيحة')
 
     const sessionAuth = await requireAuth()
     const actor = await resolveIncompletePaymentActor(
@@ -33,11 +37,7 @@ export async function POST(req: NextRequest) {
     )
 
     if (!actor) {
-      return ok({
-        error: true,
-        message: 'يجب تسجيل الدخول لإكمال الدفع المعلق',
-        code: 'AUTH_REQUIRED',
-      })
+      return unauthorized('يجب تسجيل الدخول لإكمال الدفع المعلق')
     }
 
     const result = await processIncompletePiPayment(
@@ -50,6 +50,6 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('[POST /api/payment/pi/incomplete]', err)
     const message = err instanceof Error ? err.message : 'فشل إكمال الدفع المعلق'
-    return ok({ error: true, message })
+    return fail(message, { code: 'PAYMENT_FAILED', status: 502 })
   }
 }

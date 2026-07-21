@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { InstantConsultStatus, Role } from '@prisma/client'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
-import { ok, fromAppError, serverError } from '@/lib/api-response'
+import { ok, fromAppError, serverError, notFound, badRequest, conflict } from '@/lib/api-response'
 import { prisma } from '@/lib/prisma'
 import {
   createChatRoomForInstantConsult,
@@ -30,8 +30,8 @@ export async function POST(
         isOnlineForInstant: true,
       },
     })
-    if (!doctor) return ok({ error: true, message: 'ملف الطبيب غير موجود' })
-    if (!doctor.isOnlineForInstant) return ok({ error: true, message: 'فعّل «متاح الآن» أولاً' })
+    if (!doctor) return notFound('ملف الطبيب غير موجود')
+    if (!doctor.isOnlineForInstant) return badRequest('فعّل «متاح الآن» أولاً')
 
     const request = await prisma.instantConsultRequest.findFirst({
       where: {
@@ -51,7 +51,7 @@ export async function POST(
       },
       include: { client: { select: { id: true, userId: true } } },
     })
-    if (!request) return ok({ error: true, message: 'الطلب غير موجود أو انتهت مهلة القبول' })
+    if (!request) return notFound('الطلب غير موجود أو انتهت مهلة القبول')
 
     if (request.expiresAt && request.expiresAt <= new Date()) {
       await prisma.instantConsultRequest.update({
@@ -59,11 +59,11 @@ export async function POST(
         data: { status: InstantConsultStatus.EXPIRED },
       })
       await refundInstantConsultPayment(id)
-      return ok({ error: true, message: 'انتهت مهلة قبول الطلب — تم استرداد المبلغ للمريض' })
+      return badRequest('انتهت مهلة قبول الطلب — تم استرداد المبلغ للمريض')
     }
 
     if (await doctorHasActiveInstantSession(doctor.id, id)) {
-      return ok({ error: true, message: 'لديك استشارة نشطة أخرى' })
+      return conflict('لديك استشارة نشطة أخرى')
     }
 
     const chatRoomId = await createChatRoomForInstantConsult(request.clientId, doctor.id)
@@ -89,7 +89,7 @@ export async function POST(
     })
 
     if (claimed.count === 0) {
-      return ok({ error: true, message: 'قبل طبيب آخر هذا الطلب' })
+      return conflict('قبل طبيب آخر هذا الطلب')
     }
 
     await notifyClientInstantAccepted(

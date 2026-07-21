@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { requireAdminPermission, ADMIN_PERMISSION_KEYS } from '@/lib/admin/permissions'
 import { prisma } from '@/lib/prisma'
-import { ok, created, fromAppError, serverError } from '@/lib/api-response'
+import { ok, created, fromAppError, serverError, badRequest } from '@/lib/api-response'
 import { parsePagination } from '@/lib/api-pagination'
 import { isSupportStaff } from '@/lib/support/access'
 import { notifySupportStaffNewTicket } from '@/lib/support/notify'
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     const parsed = CreateSchema.safeParse(body)
-    if (!parsed.success) return ok({ error: true, message: 'بيانات غير صحيحة' })
+    if (!parsed.success) return badRequest('بيانات غير صحيحة')
 
     const ticket = await prisma.$transaction(async tx => {
       const row = await tx.supportTicket.create({

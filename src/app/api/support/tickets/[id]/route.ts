@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { requireAdminPermission, ADMIN_PERMISSION_KEYS } from '@/lib/admin/permissions'
 import { prisma } from '@/lib/prisma'
-import { ok, fromAppError, serverError } from '@/lib/api-response'
+import { ok, fromAppError, serverError, badRequest, notFound, forbidden } from '@/lib/api-response'
 import { UnauthorizedError } from '@/core/errors'
 import { canAccessSupportTicket, isSupportStaff } from '@/lib/support/access'
 
@@ -35,7 +35,7 @@ export async function GET(
         },
       },
     })
-    if (!ticket) return ok({ error: true, message: 'التذكرة غير موجودة' })
+    if (!ticket) return notFound('التذكرة غير موجودة')
 
     const allowed = await canAccessSupportTicket(ticket, auth.context.userId, auth.context.role)
     if (!allowed) return fromAppError(new UnauthorizedError('غير مصرح'))
@@ -79,11 +79,11 @@ export async function PATCH(
 
     const { id } = await params
     const ticket = await prisma.supportTicket.findUnique({ where: { id } })
-    if (!ticket) return ok({ error: true, message: 'التذكرة غير موجودة' })
+    if (!ticket) return notFound('التذكرة غير موجودة')
 
     const body = await req.json()
     const parsed = PatchSchema.safeParse(body)
-    if (!parsed.success) return ok({ error: true, message: 'بيانات غير صحيحة' })
+    if (!parsed.success) return badRequest('بيانات غير صحيحة')
 
     const staff = await isSupportStaff(auth.context.userId, auth.context.role)
     const isOwner = ticket.userId === auth.context.userId
@@ -117,7 +117,7 @@ export async function PATCH(
       data.status = SupportTicketStatus.CLOSED
       data.closedAt = new Date()
     } else {
-      return ok({ error: true, message: 'يمكنك إغلاق التذكرة فقط' })
+      return forbidden('يمكنك إغلاق التذكرة فقط')
     }
 
     const updated = await prisma.supportTicket.update({ where: { id }, data })

@@ -2,7 +2,8 @@
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/infrastructure/auth/providers/role-guard'
 import { prisma, db } from '@/lib/prisma'
-import { ok, created, fromAppError, serverError } from '@/lib/api-response'
+import { ok, created, fromAppError, serverError, badRequest, notFound } from '@/lib/api-response'
+import { enforceChatRateLimit } from '@/lib/enforce-api-rate-limit'
 import { getChatRoomForUser, getChatRecipientUserId } from '@/lib/chat/access'
 import { CHAT_MESSAGES_PAGE_SIZE } from '@/lib/chat/constants'
 import { isAllowedChatFileUrl } from '@/lib/chat/file-url'
@@ -52,7 +53,7 @@ export async function GET(
     })
 
     const room = await getChatRoomForUser(roomId, auth.context.userId, auth.context.role)
-    if (!room) return ok({ error: true, message: 'الغرفة غير موجودة' })
+    if (!room) return notFound('الغرفة غير موجودة')
 
     if (room.status === 'ACTIVE') {
       await touchChatPresence(auth.context.userId, roomId)
@@ -61,7 +62,7 @@ export async function GET(
     if (since) {
       const sinceDate = new Date(since)
       if (Number.isNaN(sinceDate.getTime())) {
-        return ok({ error: true, message: 'تاريخ since غير صالح' })
+        return badRequest('تاريخ since غير صالح')
       }
 
       const messages = await db.chatMessage.findMany({
@@ -117,21 +118,24 @@ export async function POST(
   { params }: { params: Promise<{ roomId: string }> },
 ) {
   try {
+    const limited = await enforceChatRateLimit(req)
+    if (limited) return limited
+
     const auth = await requireAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const { roomId } = await params
     const body       = await req.json()
     const parsed     = MsgSchema.safeParse(body)
-    if (!parsed.success) return ok({ error: true, message: 'الرسالة فارغة' })
+    if (!parsed.success) return badRequest('الرسالة فارغة')
 
     const room = await getChatRoomForUser(roomId, auth.context.userId, auth.context.role)
     if (!room || room.status !== 'ACTIVE') {
-      return ok({ error: true, message: 'الغرفة غير متاحة' })
+      return notFound('الغرفة غير متاحة')
     }
 
     if (parsed.data.fileUrl && !isAllowedChatFileUrl(parsed.data.fileUrl)) {
-      return ok({ error: true, message: 'رابط المرفق غير مسموح — استخدم رفع الملف من المحادثة' })
+      return badRequest('رابط المرفق غير مسموح — استخدم رفع الملف من المحادثة')
     }
 
     const [message] = await prisma.$transaction([

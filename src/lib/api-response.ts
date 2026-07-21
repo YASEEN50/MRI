@@ -56,3 +56,42 @@ export function fromZodError(error: ZodError) {
     { status: 400 }
   )
 }
+
+/** Standard 4xx client error (replaces legacy ok({ error: true, message })). */
+export function fail(
+  message: string,
+  options?: { code?: string; status?: number; extra?: Record<string, unknown> },
+) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: { code: options?.code ?? 'REQUEST_FAILED', message },
+      ...(options?.extra ? { data: options.extra } : {}),
+    },
+    { status: options?.status ?? 400 },
+  )
+}
+
+export function badRequest(message = 'بيانات غير صحيحة', code = 'VALIDATION_ERROR') {
+  return fail(message, { code, status: 400 })
+}
+
+export function unauthorized(message = 'يجب تسجيل الدخول أولاً') {
+  return fail(message, { code: 'UNAUTHORIZED', status: 401 })
+}
+
+export function forbidden(message = 'غير مصرح') {
+  return fail(message, { code: 'FORBIDDEN', status: 403 })
+}
+
+export function notFound(message = 'غير موجود') {
+  return fail(message, { code: 'NOT_FOUND', status: 404 })
+}
+
+export function conflict(message: string, extra?: Record<string, unknown>) {
+  return fail(message, { code: 'CONFLICT', status: 409, extra })
+}
+
+export function serviceUnavailable(message: string) {
+  return fail(message, { code: 'SERVICE_UNAVAILABLE', status: 503 })
+}

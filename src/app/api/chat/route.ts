@@ -2,7 +2,8 @@
 import { NextRequest } from 'next/server'
 import { requireAuth, requirePatientAuth } from '@/infrastructure/auth/providers/role-guard'
 import { prisma, db } from '@/lib/prisma'
-import { ok, created, fromAppError, serverError } from '@/lib/api-response'
+import { ok, created, fromAppError, serverError, badRequest, notFound, forbidden } from '@/lib/api-response'
+import { enforceChatRateLimit } from '@/lib/enforce-api-rate-limit'
 import { ApprovalStatus, AppointmentStatus } from '@prisma/client'
 import { z } from 'zod'
 import { listChatRoomsForUser, type ChatRoomFilter } from '@/lib/chat/list-rooms'
@@ -34,12 +35,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = await enforceChatRateLimit(req)
+    if (limited) return limited
+
     const auth = await requirePatientAuth()
     if (!auth.success) return fromAppError(auth.error)
 
     const body   = await req.json()
     const parsed = CreateRoomSchema.safeParse(body)
-    if (!parsed.success) return ok({ error: true, message: 'بيانات غير صحيحة' })
+    if (!parsed.success) return badRequest('بيانات غير صحيحة')
 
     const doctor = await prisma.doctorProfile.findFirst({
       where: {
@@ -50,7 +54,7 @@ export async function POST(req: NextRequest) {
       },
       select: { id: true },
     })
-    if (!doctor) return ok({ error: true, message: 'الطبيب غير متاح' })
+    if (!doctor) return notFound('الطبيب غير متاح')
 
     const profile = await ensureClientProfile(auth.context.userId)
 
@@ -65,11 +69,11 @@ export async function POST(req: NextRequest) {
         },
         select: { id: true },
       })
-      if (!appt) return ok({ error: true, message: 'الموعد غير صالح لهذا الطبيب' })
+      if (!appt) return badRequest('الموعد غير صالح لهذا الطبيب')
     } else {
       const allowed = await assertPatientCanChatWithDoctor(profile.id, doctor.id)
       if (!allowed) {
-        return ok({ error: true, message: 'لا يمكن فتح محادثة بدون موعد أو استشارة مع هذا الطبيب' })
+        return forbidden('لا يمكن فتح محادثة بدون موعد أو استشارة مع هذا الطبيب')
       }
     }
 

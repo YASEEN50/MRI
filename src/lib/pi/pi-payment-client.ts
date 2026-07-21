@@ -1,6 +1,7 @@
 'use client'
 // src/lib/pi/pi-payment-client.ts — Premio U2A via Pi.createPayment
 
+import { getApiError, isApiSuccess } from '@/lib/api-client'
 import { initPiSdk, isPiBrowserReady } from '@/lib/pi/pi-auth-client'
 import { PI_AUTH_SCOPES, PREMIO_PRODUCT } from '@/lib/pi/pi-scopes'
 import { resolveIncompletePiPayment } from '@/lib/pi/resolve-incomplete-payment'
@@ -62,8 +63,8 @@ export async function payWithPi(options: PiPayOptions): Promise<{ paymentId: str
               }),
             })
             const data = await res.json()
-            if (!data.success || data.data?.error) {
-              reject(new Error(data.data?.message || data.message || 'فشلت موافقة الخادم على الدفع'))
+            if (!isApiSuccess(data)) {
+              reject(new Error(getApiError(data) || 'فشلت موافقة الخادم على الدفع'))
             }
           } catch (e) {
             reject(e instanceof Error ? e : new Error('فشلت موافقة الدفع'))
@@ -78,8 +79,8 @@ export async function payWithPi(options: PiPayOptions): Promise<{ paymentId: str
               body:    JSON.stringify({ paymentId, txid }),
             })
             const data = await res.json()
-            if (!data.success || data.data?.error) {
-              reject(new Error(data.data?.message || data.message || 'فشل إتمام الدفع'))
+            if (!isApiSuccess(data)) {
+              reject(new Error(getApiError(data) || 'فشل إتمام الدفع'))
               return
             }
             resolve({ paymentId, txid })
